@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,6 +17,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 const VERDE = '#22c55e';
+const AZUL = '#208AEF';
 
 // Formato de um treino vindo do banco.
 type Treino = {
@@ -102,6 +110,8 @@ export default function HomeScreen() {
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [instrucoes, setInstrucoes] = useState('');
+  const [gerando, setGerando] = useState(false);
 
   const primeiroNome = (
     session?.user?.user_metadata?.full_name ||
@@ -110,28 +120,48 @@ export default function HomeScreen() {
     'Atleta'
   ).split(' ')[0];
 
-  useEffect(() => {
-    async function carregar() {
-      const segunda = inicioDaSemana();
-      const domingo = new Date(segunda);
-      domingo.setDate(domingo.getDate() + 6);
+  const carregarTreinos = useCallback(async () => {
+    const segunda = inicioDaSemana();
+    const domingo = new Date(segunda);
+    domingo.setDate(domingo.getDate() + 6);
 
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('id, data, tipo, descricao, distancia_km, emoji, concluido')
-        .gte('data', paraISO(segunda))
-        .lte('data', paraISO(domingo))
-        .order('data', { ascending: true });
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('id, data, tipo, descricao, distancia_km, emoji, concluido')
+      .gte('data', paraISO(segunda))
+      .lte('data', paraISO(domingo))
+      .order('data', { ascending: true });
 
-      if (error) {
-        setErro(error.message);
-      } else {
-        setTreinos((data as Treino[]) ?? []);
-      }
-      setCarregando(false);
+    if (error) {
+      setErro(error.message);
+    } else {
+      setTreinos((data as Treino[]) ?? []);
     }
-    carregar();
   }, []);
+
+  useEffect(() => {
+    carregarTreinos().finally(() => setCarregando(false));
+  }, [carregarTreinos]);
+
+  // Chama a função servidor que conversa com o Gemini e gera o plano da semana.
+  async function gerarPlano() {
+    setGerando(true);
+    setErro(null);
+
+    const { data, error } = await supabase.functions.invoke('generate-plan', {
+      body: { instrucoes: instrucoes.trim() },
+    });
+
+    if (error) {
+      setErro('Não consegui falar com o servidor: ' + error.message);
+    } else if (data?.error) {
+      setErro(data.error);
+    } else {
+      await carregarTreinos();
+      setInstrucoes('');
+    }
+    setGerando(false);
+  }
 
   // Marca/desmarca um treino como concluído (atualiza a tela na hora e salva no banco).
   async function alternarConcluido(treino: Treino) {
@@ -159,6 +189,7 @@ export default function HomeScreen() {
     }
   }
 
+  const theme = useTheme();
   const corridas = treinos.filter((t) => t.distancia_km != null);
   const totalKm = corridas.reduce((soma, t) => soma + (t.distancia_km ?? 0), 0);
   const concluidas = corridas.filter((t) => t.concluido).length;
@@ -190,6 +221,39 @@ export default function HomeScreen() {
               </ThemedText>
             )}
           </View>
+
+          <ThemedView type="backgroundElement" style={styles.geradorCard}>
+            <ThemedText type="smallBold">🤖 Agente de treinos</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Gere o plano da semana com IA. Se quiser, conte algo antes (ex: &quot;essa
+              semana tô cansado, deixa mais leve&quot;).
+            </ThemedText>
+            <TextInput
+              value={instrucoes}
+              onChangeText={setInstrucoes}
+              placeholder="Algum pedido para esta semana? (opcional)"
+              placeholderTextColor={theme.textSecondary}
+              editable={!gerando}
+              multiline
+              style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+            />
+            <Pressable
+              onPress={gerarPlano}
+              disabled={gerando}
+              style={({ pressed }) => [
+                styles.botaoGerar,
+                pressed && styles.pressionado,
+                gerando && styles.botaoDesabilitado,
+              ]}>
+              {gerando ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <ThemedText style={styles.botaoGerarTexto}>
+                  {treinos.length > 0 ? 'Gerar novo plano da semana' : 'Gerar plano da semana'}
+                </ThemedText>
+              )}
+            </Pressable>
+          </ThemedView>
 
           {carregando && (
             <View style={styles.aviso}>
@@ -259,6 +323,33 @@ const styles = StyleSheet.create({
   aviso: {
     paddingVertical: Spacing.four,
     alignItems: 'center',
+  },
+  geradorCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    gap: Spacing.two,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    padding: Spacing.two,
+    minHeight: 44,
+    fontSize: 14,
+  },
+  botaoGerar: {
+    backgroundColor: AZUL,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botaoDesabilitado: {
+    opacity: 0.7,
+  },
+  botaoGerarTexto: {
+    color: '#ffffff',
+    fontWeight: 700,
+    fontSize: 14,
   },
   lista: {
     gap: Spacing.two,
