@@ -19,6 +19,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // true = captura o login que volta na URL depois de entrar com o Google (web).
+    detectSessionInUrl: true,
   },
 });
