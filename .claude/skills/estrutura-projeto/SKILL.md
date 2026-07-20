@@ -12,34 +12,25 @@ o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 > continua sendo o nome técnico interno (repo do GitHub, slug do Expo, pacote npm,
 > pasta do projeto) — não confundir os dois. Ver seção "Identidade visual" mais abaixo.
 
-## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-20
+## ▶️ Onde paramos (retomar aqui) — atualizado em 2026-07-20
 
 **Tudo publicado e funcionando no PWA real**: https://djgabrielribeiro865.github.io/app-sports/
-— plano da semana, marcar como feito, login com Google, perfis + RLS seguros, e
-**navegação em gaveta (drawer) com 5 telas: Plano da semana, Perfil, Agente de treinos
-(gerar plano via Gemini), Histórico e Estatísticas** (com gráficos). Tudo commitado e
-no GitHub (branch `main`, limpo).
+— plano da semana, marcar como feito, login com Google, perfis + RLS seguros,
+**navegação em gaveta (drawer) com 5 telas: Plano da semana, Perfil, Agente de treinos,
+Histórico e Estatísticas**, app renomeado pro usuário final como **"Runner"** (ícone
+próprio, gerado pelo Gabriel), e o **agente Gemini gerando planos reais com sucesso**
+(usando o Perfil do atleta como contexto: nível, objetivo, dias disponíveis, meta de
+prova+data, restrições — ver seção "Agente Gemini" abaixo). Tudo commitado e no GitHub
+(branch `main`, limpo).
 
-**A esposa já testou o login com a própria conta Google, com sucesso** — confirma que
-os perfis separados e a RLS por-usuário funcionam na prática (cada um vê só o seu
-plano).
+**A esposa já testou o login com a própria conta Google, com sucesso.**
 
 **Banco de treinos foi resetado** (pedido do Gabriel, `db/03_reset_workouts.sql`) pra
 começar a v2 do zero, sem dados de exemplo. Perfis/login/configurações ficaram intactos.
 
-**Agente Gemini agora usa o Perfil do atleta** (`db/04_perfil_atleta.sql` +
-`src/app/(drawer)/perfil.tsx`): nível, objetivo, dias disponíveis pra treinar, meta de
-prova+data e restrições/lesões — tudo isso é lido pela edge function e injetado no
-prompt (ver seção "Agente Gemini" abaixo pros detalhes de como cada campo é usado).
-**Pendência conhecida:** a geração real com o Gemini ainda **não teve um teste de
-sucesso confirmado** (billing da chave já foi resolvido; o Gabriel pediu pra testar
-mais pra frente). Ao retomar: preencher o Perfil de cada um (Gabriel e esposa) e gerar
-um plano pra ver o resultado. Se falhar, checar `resultadoGemini.debug` reintroduzindo
-temporariamente o modo debug (ver Notas do agente Gemini abaixo).
-
-**Depois disso, o roadmap original está completo.** Próximos passos seriam iniciativa
-livre: refinar Estatísticas (mais métricas), outro esporte além de corrida, notificações,
-etc. — perguntar ao Gabriel o que ele quer em seguida.
+**O roadmap original está completo.** Próximos passos são iniciativa livre: refinar
+Estatísticas (mais métricas), outro esporte além de corrida, notificações, etc. —
+perguntar ao Gabriel o que ele quer em seguida.
 
 **Itens de manutenção em aberto (não bloqueantes):** trocar/revogar o token de acesso
 do Supabase e a chave do Gemini que apareceram em texto puro no chat durante a
@@ -76,7 +67,7 @@ app **Runna** (comprado pela Strava). Três peças que conversam:
 | Distribuição inicial | **PWA** (web) | `npx expo start --web`. Porta aberta pro nativo depois (ex: GPS de corrida) |
 | Linguagem | **TypeScript** | Alias de import `@/` → `src/` |
 | Banco/Auth | **Supabase** | Grátis. Sincroniza os dois celulares. Auth via Google OAuth |
-| IA | **Google Gemini** (`gemini-2.5-flash` via API) | Agente gera plano semanal, rodando numa Edge Function. Modo: sob demanda + conversacional |
+| IA | **Google Gemini** (`gemini-3.5-flash` via API) | Agente gera plano semanal, rodando numa Edge Function. Modo: sob demanda + conversacional |
 
 ## Estrutura de pastas
 
@@ -196,7 +187,7 @@ reportar um bug específico que precise ser reproduzido.
 - [x] Perfis por usuário + RLS seguro (cada um vê/mexe só no seu, via `auth.uid()`)
 - [x] Publicar como PWA no GitHub Pages — NO AR em https://djgabrielribeiro865.github.io/app-sports/ (deploy automático funcionando)
 - [x] App "cru" sem barra do Expo (removida a navegação/template padrão)
-- [x] Agente Gemini — edge function publicada + UI pronta; geração real ainda sem teste de sucesso confirmado ← **retomar aqui**
+- [x] Agente Gemini — geração real testada e confirmada funcionando (usa `gemini-3.5-flash`)
 - [x] Esposa testou o login com a própria conta Google — sucesso (perfis/RLS separados confirmados na prática)
 - [x] Navegação em gaveta (drawer) com hambúrguer, overlay, fecha ao escolher
 - [x] Tela Histórico — semanas passadas agrupadas, cards expansíveis, marcar/desmarcar retroativo
@@ -245,7 +236,7 @@ reportar um bug específico que precise ser reproduzido.
   (JWT do usuário vai junto automaticamente) → a função cria um client Supabase
   "como o usuário" (Authorization forwarded) → busca o **Perfil** do usuário
   (`profiles`: nivel, objetivo, dias_disponiveis, meta_prova, meta_data, restricoes) →
-  chama a API do Gemini (`gemini-2.5-flash`, `generationConfig.responseSchema` força
+  chama a API do Gemini (`gemini-3.5-flash`, `generationConfig.responseSchema` força
   JSON estruturado) → apaga os treinos antigos da semana atual e insere os novos,
   respeitando a RLS (não usa service_role — só a identidade do próprio usuário).
 - **Perfil no prompt** (`montarPrompt` em `supabase/functions/generate-plan/index.ts`):
@@ -283,12 +274,19 @@ reportar um bug específico que precise ser reproduzido.
   campo de instruções opcional + botão "Gerar plano da semana". Ao concluir com sucesso,
   navega de volta pra "Plano da semana" (`router.push('/')`) pra ver o resultado.
 - **Debug**: essa versão do `supabase` CLI não tem `functions logs`. Pra depurar erros do
-  Gemini, reintroduzir temporariamente o campo `debug` na resposta de erro (já foi feito
-  uma vez — ver histórico do git em `supabase/functions/generate-plan/index.ts`) e
-  remover de novo depois de resolver.
-- Erro já visto: `429 RESOURCE_EXHAUSTED` / "prepayment credits are depleted" — billing
-  do projeto Google Cloud da chave, não bug nosso. Resolvido pelo Gabriel regularizando
-  o pagamento; geração real ainda sem teste de sucesso confirmado.
+  Gemini (ou de auth), reintroduzir temporariamente o campo `debug`/detalhe técnico na
+  resposta de erro (já foi feito várias vezes — ver histórico do git em
+  `supabase/functions/generate-plan/index.ts`) e remover de novo depois de resolver.
+- **Geração real confirmada funcionando** (testado pelo Gabriel em 2026-07-20).
+- Erros já vistos e resolvidos:
+  - `429 RESOURCE_EXHAUSTED` / "prepayment credits are depleted" — billing do projeto
+    Google Cloud da chave, não bug nosso. Resolvido pelo Gabriel regularizando o pagamento.
+  - `AuthSessionMissingError` ("Sessão inválida") — ver nota sobre `getUser(jwt)` acima.
+  - `404 "model ... no longer available to new users"` — o Google descontinuou a geração
+    2.5 do Gemini de forma **antecipada e sem aviso** em julho de 2026 (inclusive
+    `gemini-2.5-flash-lite`, não só o `-flash` normal). Migrado pra `gemini-3.5-flash`.
+    ⚠️ Se isso voltar a acontecer no futuro, checar o nome do modelo atual antes de
+    trocar — não assumir de memória, os modelos mudam rápido.
 
 ### Histórico e Estatísticas — decisões de cálculo
 - **Histórico**: busca treinos com `data < segunda-feira atual` (semana em curso fica só
@@ -348,9 +346,8 @@ reportar um bug específico que precise ser reproduzido.
 
 ## Roadmap (o que falta)
 
-1. **Confirmar o primeiro plano gerado com sucesso pelo Gemini** (retomar aqui).
-2. Daí em diante, o MVP original está completo — próximos passos ficam a critério do
-   Gabriel (outro esporte, mais métricas, notificações, etc.).
+O MVP original está completo. Próximos passos ficam a critério do Gabriel (outro
+esporte, mais métricas, notificações, etc.) — perguntar antes de assumir prioridade.
 
 ## Memória relacionada
 

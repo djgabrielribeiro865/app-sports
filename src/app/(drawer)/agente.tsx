@@ -70,7 +70,7 @@ export default function AgenteScreen() {
             <TextInput
               value={instrucoes}
               onChangeText={setInstrucoes}
-              placeholder="Algum pedido para esta semana? (opcional)"
+              placeholder="Algum pedido pra esta semana? (opcional)"
               placeholderTextColor={theme.textSecondary}
               editable={!gerando}
               multiline

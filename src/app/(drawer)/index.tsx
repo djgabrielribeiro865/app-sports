@@ -102,7 +102,7 @@ export default function PlanoDaSemanaScreen() {
             <ThemedView type="backgroundElement" style={styles.card}>
               <ThemedText type="smallBold">Nenhum treino nesta semana ainda</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                Gere um plano com o agente de treinos.
+                Toque no botão abaixo pra criar um plano automaticamente.
               </ThemedText>
               <Pressable
                 // `as any`: o arquivo de rotas tipadas (.expo/types, gerado e gitignored)
