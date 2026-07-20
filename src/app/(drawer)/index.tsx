@@ -7,11 +7,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TreinoCard } from '@/components/treino-card';
 import { Accent, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { atualizarConclusao, fimDaSemana, inicioDaSemana, paraISO, Treino } from '@/lib/treinos';
 import { supabase } from '@/lib/supabase';
 
 export default function PlanoDaSemanaScreen() {
   const router = useRouter();
+  const { perfilCompleto } = useAuth();
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -69,6 +71,17 @@ export default function PlanoDaSemanaScreen() {
               </ThemedText>
             )}
           </View>
+
+          {!perfilCompleto && (
+            <Pressable onPress={() => router.push('/perfil' as any)}>
+              <ThemedView type="backgroundElement" style={styles.avisoPerfilCard}>
+                <ThemedText type="small">
+                  💡 Complete seu <ThemedText type="smallBold">Perfil</ThemedText> (nível,
+                  objetivo, dias disponíveis) pra planos mais certeiros. Toque aqui →
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          )}
 
           {carregando && (
             <View style={styles.aviso}>
@@ -148,6 +161,10 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     borderRadius: Spacing.three,
     gap: Spacing.two,
+  },
+  avisoPerfilCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
   },
   botaoAgente: {
     backgroundColor: Accent.azul,

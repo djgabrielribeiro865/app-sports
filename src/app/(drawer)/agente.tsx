@@ -7,11 +7,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Accent, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export default function AgenteScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { perfilCompleto } = useAuth();
   const [instrucoes, setInstrucoes] = useState('');
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -49,14 +51,16 @@ export default function AgenteScreen() {
             </ThemedText>
           </View>
 
-          <Pressable onPress={() => router.push('/perfil' as any)}>
-            <ThemedView type="backgroundElement" style={styles.dicaCard}>
-              <ThemedText type="small">
-                💡 Preencha seu <ThemedText type="smallBold">Perfil</ThemedText> (nível,
-                objetivo, dias disponíveis) pra planos mais certeiros. Toque aqui →
-              </ThemedText>
-            </ThemedView>
-          </Pressable>
+          {!perfilCompleto && (
+            <Pressable onPress={() => router.push('/perfil' as any)}>
+              <ThemedView type="backgroundElement" style={styles.dicaCard}>
+                <ThemedText type="small">
+                  💡 Preencha seu <ThemedText type="smallBold">Perfil</ThemedText> (nível,
+                  objetivo, dias disponíveis) pra planos mais certeiros. Toque aqui →
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          )}
 
           <ThemedView type="backgroundElement" style={styles.geradorCard}>
             <ThemedText type="small" themeColor="textSecondary">

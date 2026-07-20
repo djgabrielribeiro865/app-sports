@@ -32,7 +32,7 @@ function brParaIso(br: string): string | null {
 
 export default function PerfilScreen() {
   const theme = useTheme();
-  const { session } = useAuth();
+  const { session, recarregarPerfil } = useAuth();
   const userId = session?.user?.id;
 
   const [carregando, setCarregando] = useState(true);
@@ -102,6 +102,7 @@ export default function PerfilScreen() {
       setErro(error.message);
     } else {
       setSalvo(true);
+      recarregarPerfil(); // atualiza o aviso/badge no resto do app na hora
     }
     setSalvando(false);
   }

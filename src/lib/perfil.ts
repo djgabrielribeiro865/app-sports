@@ -21,6 +21,19 @@ export const DIAS_SEMANA = [
   { chave: 'domingo', label: 'Dom' },
 ] as const;
 
+// Campos que consideramos essenciais pro agente gerar planos assertivos.
+// Se algum deles estiver vazio (inclusive um campo novo, adicionado no futuro,
+// que ninguém preencheu ainda), o perfil é considerado incompleto.
+const CAMPOS_OBRIGATORIOS: (keyof PerfilAtleta)[] = ['nivel', 'objetivo', 'dias_disponiveis'];
+
+export function perfilEstaCompleto(perfil: PerfilAtleta | null): boolean {
+  if (!perfil) return false;
+  return CAMPOS_OBRIGATORIOS.every((campo) => {
+    const valor = perfil[campo];
+    return Array.isArray(valor) ? valor.length > 0 : valor != null && valor !== '';
+  });
+}
+
 export async function buscarPerfil(userId: string) {
   const { data, error } = await supabase
     .from('profiles')

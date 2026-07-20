@@ -5,19 +5,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Accent, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 const ITENS = [
   { rota: 'index', label: 'Plano da semana', emoji: '🏃' },
-  { rota: 'perfil', label: 'Perfil', emoji: '👤' },
   { rota: 'agente', label: 'Agente de treinos', emoji: '🤖' },
   { rota: 'historico', label: 'Histórico', emoji: '📜' },
   { rota: 'estatisticas', label: 'Estatísticas', emoji: '📊' },
 ] as const;
 
 export function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
-  const { session } = useAuth();
+  const theme = useTheme();
+  const { session, perfilCompleto } = useAuth();
 
   const nome =
     session?.user?.user_metadata?.full_name ||
@@ -26,6 +27,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     'Atleta';
   const primeiraLetra = nome.charAt(0).toUpperCase();
   const rotaAtiva = state.routeNames[state.index];
+  const perfilAtivo = rotaAtiva === 'perfil';
 
   function irPara(rota: string) {
     navigation.navigate(rota);
@@ -36,7 +38,7 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.perfil}>
+          <View style={styles.perfilTopo}>
             <View style={styles.avatar}>
               <ThemedText style={styles.avatarLetra}>{primeiraLetra}</ThemedText>
             </View>
@@ -63,14 +65,27 @@ export function DrawerContent({ navigation, state }: DrawerContentComponentProps
           </View>
         </ScrollView>
 
-        <Pressable
-          onPress={() => supabase.auth.signOut()}
-          style={({ pressed }) => [styles.sair, pressed && styles.pressionado]}>
-          <ThemedText style={styles.itemEmoji}>🚪</ThemedText>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Sair
-          </ThemedText>
-        </Pressable>
+        {/* Seção de conta: Perfil e Sair, separada dos itens de navegação acima. */}
+        <View style={[styles.rodape, { borderTopColor: theme.backgroundSelected }]}>
+          <Pressable
+            onPress={() => irPara('perfil')}
+            style={({ pressed }) => pressed && styles.pressionado}>
+            <ThemedView type={perfilAtivo ? 'backgroundSelected' : undefined} style={styles.item}>
+              <ThemedText style={styles.itemEmoji}>👤</ThemedText>
+              <ThemedText type={perfilAtivo ? 'smallBold' : 'default'} style={styles.itemTexto}>
+                Perfil
+              </ThemedText>
+              {!perfilCompleto && <View style={styles.badge} />}
+            </ThemedView>
+          </Pressable>
+
+          <Pressable
+            onPress={() => supabase.auth.signOut()}
+            style={({ pressed }) => [styles.item, pressed && styles.pressionado]}>
+            <ThemedText style={styles.itemEmoji}>🚪</ThemedText>
+            <ThemedText themeColor="textSecondary">Sair</ThemedText>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -88,7 +103,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.four,
   },
-  perfil: {
+  perfilTopo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
@@ -123,13 +138,22 @@ const styles = StyleSheet.create({
   itemEmoji: {
     fontSize: 18,
   },
+  itemTexto: {
+    flex: 1,
+  },
+  badge: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
   pressionado: {
     opacity: 0.7,
   },
-  sair: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+  rodape: {
     padding: Spacing.three,
+    paddingTop: Spacing.two,
+    borderTopWidth: 1,
+    gap: Spacing.one,
   },
 });
