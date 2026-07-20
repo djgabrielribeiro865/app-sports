@@ -31,6 +31,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Quando alguém entra, garante que existe um "perfil" dela no banco
+  // (com o nome vindo da conta Google). Roda uma vez por usuário logado.
+  useEffect(() => {
+    const usuario = session?.user;
+    if (!usuario) return;
+    const nome =
+      usuario.user_metadata?.full_name ||
+      usuario.user_metadata?.name ||
+      usuario.email ||
+      'Atleta';
+    supabase
+      .from('profiles')
+      .upsert({ id: usuario.id, nome })
+      .then(({ error }) => {
+        if (error) console.log('Erro ao salvar perfil:', error.message);
+      });
+  }, [session?.user?.id]);
+
   return <AuthContext.Provider value={{ session, carregando }}>{children}</AuthContext.Provider>;
 }
 

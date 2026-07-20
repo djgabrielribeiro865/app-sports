@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 const VERDE = '#22c55e';
@@ -97,9 +98,17 @@ function TreinoCard({ treino, onToggle }: { treino: Treino; onToggle: () => void
 }
 
 export default function HomeScreen() {
+  const { session } = useAuth();
   const [treinos, setTreinos] = useState<Treino[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  const primeiroNome = (
+    session?.user?.user_metadata?.full_name ||
+    session?.user?.user_metadata?.name ||
+    session?.user?.email ||
+    'Atleta'
+  ).split(' ')[0];
 
   useEffect(() => {
     async function carregar() {
@@ -161,9 +170,16 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Olá, Gabriel 👋
-            </ThemedText>
+            <View style={styles.headerTopo}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Olá, {primeiroNome} 👋
+              </ThemedText>
+              <Pressable onPress={() => supabase.auth.signOut()} hitSlop={8}>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  Sair
+                </ThemedText>
+              </Pressable>
+            </View>
             <ThemedText type="subtitle">Plano da semana</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               Corrida · {corridas.length} treinos · {totalKm} km no total
@@ -234,6 +250,11 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: Spacing.three,
     gap: Spacing.one,
+  },
+  headerTopo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   aviso: {
     paddingVertical: Spacing.four,
