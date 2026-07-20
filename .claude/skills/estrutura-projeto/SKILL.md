@@ -14,7 +14,14 @@ o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 https://djgabrielribeiro865.github.io/app-sports/ — ver plano da semana, marcar como
 feito, login com Google, perfis + RLS seguros, app "cru" sem barra do Expo, e o
 **agente Gemini já integrado** (edge function `generate-plan` publicada e ligada ao
-botão "Gerar plano da semana" no app). Tudo commitado e no GitHub (branch `main`, limpo).
+botão "Gerar plano da semana" no app). Workflow de deploy também está com as GitHub
+Actions atualizadas (checkout v7, setup-node v7 com `node-version: lts/*`,
+upload-pages-artifact v5, deploy-pages v5 — sem avisos de depreciação). Tudo commitado
+e no GitHub (branch `main`, limpo).
+
+**A esposa já testou o login com a própria conta Google, com sucesso** — confirma que
+os perfis separados e a RLS por-usuário funcionam na prática (cada um vê só o seu
+plano).
 
 **Pendência conhecida:** a geração real com o Gemini ainda **não teve um teste de
 sucesso confirmado**. No único teste feito, a chave de API deu erro `429
@@ -26,9 +33,11 @@ para mais adiante** — retomar por aí: clicar em "Gerar plano da semana" no PW
 conferir se os 7 treinos aparecem. Se falhar de novo, checar `resultadoGemini.debug`
 reintroduzindo temporariamente o modo debug (ver Notas do agente Gemini abaixo).
 
-**Depois disso, os passos que faltam:** histórico/estatísticas; convidar a esposa
-(adicionar o e-mail dela como "usuário de teste" no Google Cloud Console antes dela
-logar, já que o app OAuth ainda está em modo de teste).
+**Depois disso, o que falta é:** histórico/estatísticas.
+
+**Itens de manutenção em aberto (não bloqueantes):** trocar/revogar o token de acesso
+do Supabase e a chave do Gemini que apareceram em texto puro no chat durante a
+configuração (por precaução).
 
 **Para retomar o desenvolvimento local (opcional — o Gabriel usa o PWA publicado):**
 `npx expo start --web` (abre em http://localhost:8081). Reiniciar sempre que mudar
@@ -130,8 +139,8 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] Publicar como PWA no GitHub Pages — NO AR em https://djgabrielribeiro865.github.io/app-sports/ (deploy automático funcionando)
 - [x] App "cru" sem barra do Expo (removida a navegação/template padrão)
 - [x] Agente Gemini — edge function publicada + UI pronta; geração real ainda sem teste de sucesso confirmado ← **retomar aqui**
+- [x] Esposa testou o login com a própria conta Google — sucesso (perfis/RLS separados confirmados na prática)
 - [ ] Histórico + estatísticas
-- [ ] Convidar a esposa (adicionar e-mail como usuário de teste no Google Cloud Console)
 
 ### Notas de auth
 - Google OAuth: client no Google Cloud (projeto `app-sports-503000`), provider Google habilitado no Supabase.
@@ -186,7 +195,6 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 
 1. **Confirmar o primeiro plano gerado com sucesso pelo Gemini** (retomar aqui).
 2. Histórico + estatísticas.
-3. Convidar a esposa (perfil dela, usuário de teste no Google Cloud Console).
 
 ## Memória relacionada
 
