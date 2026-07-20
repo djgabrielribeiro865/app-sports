@@ -63,3 +63,10 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+// Cores de destaque, iguais no claro e no escuro (não vêm de Colors).
+export const Accent = {
+  verde: '#22c55e',
+  azul: '#208AEF',
+  cinza: '#94A3B8',
+} as const;
