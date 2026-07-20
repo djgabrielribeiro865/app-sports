@@ -64,11 +64,10 @@ app **Runna** (comprado pela Strava). Três peças que conversam:
 ```
 src/
   app/                 # As TELAS (cada arquivo = uma rota, via expo-router)
-    _layout.tsx        # Layout raiz: ThemeProvider (claro/escuro) + <AppTabs/>
-    index.tsx          # Tela "Home" → hoje é o "Plano da semana" (dados de exemplo fixos)
-    explore.tsx        # Tela "Explore" (ainda template padrão do Expo)
+    _layout.tsx        # Layout raiz: ThemeProvider + AuthProvider + Porteiro (login/app via <Slot/>)
+    index.tsx          # Única tela hoje: "Plano da semana" (lê do Supabase)
   components/          # Peças reutilizáveis de UI
-    app-tabs.tsx       # Abas de baixo (NativeTabs). Onde renomear/adicionar abas
+    login-screen.tsx   # Tela de login (botão Entrar com Google)
     themed-text.tsx    # <ThemedText type="..."> — todo texto passa por aqui
     themed-view.tsx    # <ThemedView type="..."> — containers com cor de tema
     ...                # animated-icon, hint-row, external-link, web-badge, ui/collapsible
@@ -97,9 +96,12 @@ a versão certa por plataforma).
 
 ## Navegação
 
-- Abas de baixo definidas em `src/components/app-tabs.tsx` (`NativeTabs`). Cada `<NativeTabs.Trigger name="X">`
-  aponta pra uma tela `src/app/X.tsx`. Hoje: `index` (Home) e `explore`.
-- Adicionar tela nova = criar `src/app/nome.tsx` + um `Trigger` em `app-tabs.tsx`.
+- **Sem barra de navegação** (app "cru", pedido do Gabriel). O `_layout.tsx` renderiza `<Slot/>`
+  quando logado, que mostra a rota atual. Hoje só existe `index`.
+- A barra do template Expo (`app-tabs*.tsx`, "Expo Starter"/Home/Explore/Docs) e a tela `explore`
+  foram REMOVIDAS.
+- Adicionar tela nova = criar `src/app/nome.tsx`. Quando houver mais de uma tela e quisermos
+  navegação, dá pra introduzir um menu/abas limpo (sem marca Expo).
 
 ## GitHub / versionamento
 
