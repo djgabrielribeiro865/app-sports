@@ -89,7 +89,8 @@ src/
       historico.tsx               # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
       estatisticas.tsx              # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
   components/             # Peças reutilizáveis de UI
-    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 5 itens, botão Sair
+    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 4 itens de navegação
+                           # + seção de conta (Perfil com badge, Sair) separada no rodapé
     treino-card.tsx         # <TreinoCard> — usado em "Plano da semana" e "Histórico"
     donut-chart.tsx          # Anel de progresso (SVG) — usado nas Estatísticas
     login-screen.tsx       # Tela de login (botão Entrar com Google)
@@ -103,7 +104,7 @@ src/
     treinos.ts             # Tipo Treino, DIAS, helpers de data (semana/formatação),
                            # atualizarConclusao() — compartilhado entre as telas de treino
     perfil.ts               # Tipo PerfilAtleta, DIAS_SEMANA, buscarPerfil()/salvarPerfil()
-    auth.tsx                  # AuthProvider (sessão do Supabase)
+    auth.tsx                  # AuthProvider (sessão + Perfil + perfilCompleto + recarregarPerfil)
     supabase.ts                # Cliente do Supabase
   hooks/
     use-theme.ts           # Retorna as cores do tema atual (claro/escuro)
@@ -137,10 +138,12 @@ a versão certa por plataforma).
 - Implementado com `expo-router/drawer` (grupo de rotas `src/app/(drawer)/`). Requer
   `GestureHandlerRootView` envolvendo o app (está em `src/app/_layout.tsx`).
 - `drawerContent` é **customizado** (`src/components/drawer-content.tsx`, não o padrão do
-  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 5 itens
-  (`ITENS` — Plano da semana, Perfil, Agente de treinos, Histórico, Estatísticas) com
-  emoji + destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
-  `navigation.navigate(rota)` + `navigation.closeDrawer()` explicitamente.
+  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 4 itens
+  de navegação (`ITENS` — Plano da semana, Agente de treinos, Histórico, Estatísticas)
+  com emoji + destaque no ativo. **Perfil e Sair ficam numa seção separada no rodapé**
+  (abaixo de uma linha divisória), pedido do Gabriel pra distinguir "navegação" de
+  "conta". "Perfil" ganha um ponto vermelho (badge) quando `!perfilCompleto`. Ao tocar
+  num item, chama `navigation.navigate(rota)` + `navigation.closeDrawer()` explicitamente.
 - ⚠️ **Rotas tipadas ficam desatualizadas**: `.expo/types/router.d.ts` (gerado, gitignored)
   só é regenerado pelo servidor dev interativo (`expo start`), que **não rodamos mais**
   (ver regra de teste abaixo). `npx expo export` NÃO regenera esse arquivo. Resultado:
@@ -205,8 +208,25 @@ reportar um bug específico que precise ser reproduzido.
 - Redirect URLs liberados no Supabase: `http://localhost:8081/**` e `https://djgabrielribeiro865.github.io/app-sports/**`. Site URL = a do Pages.
 - `src/lib/auth.tsx` = AuthProvider (sessão + upsert de perfil no login). `src/components/login-screen.tsx` = tela de login. Porteiro em `src/app/_layout.tsx`.
 - `detectSessionInUrl: true` (captura o retorno OAuth na web).
-- Usuário de teste no consent screen do Google: adicionar o e-mail de cada pessoa que for logar (esposa ainda não logou).
+- Usuário de teste no consent screen do Google: adicionar o e-mail de cada pessoa que for logar. Gabriel e esposa já testaram login com sucesso.
 - Gabriel uid = `1dc91e1b-1d06-4c93-bc02-64893c6962a0`.
+
+### Perfil do atleta e "aviso de perfil incompleto"
+- Campos em `profiles`: `nivel`, `objetivo`, `dias_disponiveis` (text[]), `meta_prova`,
+  `meta_data`, `restricoes` (`db/04_perfil_atleta.sql`). Tela: `src/app/(drawer)/perfil.tsx`.
+- `src/lib/perfil.ts`: tipo `PerfilAtleta`, `DIAS_SEMANA`, `buscarPerfil()`, `salvarPerfil()`
+  e `perfilEstaCompleto()` — essa função é a fonte única de verdade sobre o que conta
+  como "obrigatório" (hoje: `nivel`, `objetivo`, `dias_disponiveis`; `meta_prova`/
+  `meta_data`/`restricoes` são opcionais). **Se adicionar um campo obrigatório novo no
+  futuro, só incluir na lista `CAMPOS_OBRIGATORIOS` dentro de `perfil.ts` — o aviso pra
+  completar volta a aparecer sozinho pra quem não preencheu, sem precisar mexer em mais nada.**
+- `AuthProvider` (`src/lib/auth.tsx`) carrega o Perfil junto com a sessão e expõe
+  `perfil`, `perfilCompleto` (booleano já calculado) e `recarregarPerfil()` via `useAuth()`.
+  A tela de Perfil chama `recarregarPerfil()` depois de salvar, pra badge/aviso
+  atualizarem em tempo real em qualquer tela, sem precisar recarregar o app.
+- Onde o aviso aparece quando `!perfilCompleto`: ponto vermelho no item "Perfil" da
+  gaveta (`drawer-content.tsx`), e um cartão "💡 Complete seu Perfil" no topo do Plano
+  da semana e no topo do Agente de treinos — ambos somem sozinhos assim que fica completo.
 
 ### Notas técnicas do que já foi feito
 - `app.json` → `web.output = "single"` (SPA, renderiza no navegador; necessário pro Supabase funcionar na web).
