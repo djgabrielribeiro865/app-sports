@@ -1,6 +1,6 @@
 {
-  "name": "app-sports",
-  "short_name": "app-sports",
+  "name": "Runner",
+  "short_name": "Runner",
   "description": "Gestão de treinos de corrida",
   "start_url": ".",
   "scope": ".",

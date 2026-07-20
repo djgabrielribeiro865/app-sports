@@ -26,7 +26,7 @@ const tags = [
   '<meta name="theme-color" content="#208AEF" />',
   '<link rel="apple-touch-icon" href="icons/icon-192.png" />',
   '<meta name="apple-mobile-web-app-capable" content="yes" />',
-  '<meta name="apple-mobile-web-app-title" content="app-sports" />',
+  '<meta name="apple-mobile-web-app-title" content="Runner" />',
 ].join('\n  ');
 
 const novoHtml = html.replace('</head>', `  ${tags}\n</head>`);

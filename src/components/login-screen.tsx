@@ -36,7 +36,7 @@ export function LoginScreen() {
         <View style={styles.center}>
           <ThemedText style={styles.logo}>🏃</ThemedText>
           <ThemedText type="title" style={styles.titulo}>
-            app-sports
+            Runner
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
             A gestão dos treinos de vocês, num lugar só.
