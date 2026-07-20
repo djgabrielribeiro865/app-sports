@@ -49,6 +49,9 @@ jobs:
         run: |
           # Impede o GitHub de ignorar a pasta _expo (que começa com "_").
           touch dist/.nojekyll
+          # Injeta as tags de PWA (manifesto, ícone iOS) no HTML — necessário
+          # pro navegador oferecer "Instalar app" em vez de só "criar atalho".
+          node scripts/inject-pwa-head.js
           # Faz o app funcionar ao recarregar em qualquer rota (SPA fallback).
           cp dist/index.html dist/404.html
 
