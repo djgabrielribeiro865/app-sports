@@ -8,30 +8,31 @@ description: Documentação viva do app-sports — visão, stack, estrutura de p
 Documento de referência do projeto. **Mantenha atualizado**: sempre que a arquitetura,
 o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 
-## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-19
+## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-20
 
-**Funcionando de ponta a ponta (local):** app Expo/PWA + Supabase, ver plano da semana,
-marcar treino como feito (salva no banco), login com Google, perfis por usuário e RLS
-segura (cada um só vê/mexe no seu). Tudo commitado e no GitHub (branch `main`, limpo).
+**Tudo publicado e funcionando no PWA real** (não só local):
+https://djgabrielribeiro865.github.io/app-sports/ — ver plano da semana, marcar como
+feito, login com Google, perfis + RLS seguros, app "cru" sem barra do Expo, e o
+**agente Gemini já integrado** (edge function `generate-plan` publicada e ligada ao
+botão "Gerar plano da semana" no app). Tudo commitado e no GitHub (branch `main`, limpo).
 
-**Pendência conhecida:** publicação do PWA no GitHub Pages ficou **bloqueada por um
-incidente do GitHub Actions** (degradação em 2026-07-19). A configuração está 100% pronta;
-ao retomar, é só re-disparar o deploy: `gh workflow run deploy.yml` (ou dar um push). URL
-final será https://djgabrielribeiro865.github.io/app-sports/. Confirmar no celular depois.
+**Pendência conhecida:** a geração real com o Gemini ainda **não teve um teste de
+sucesso confirmado**. No único teste feito, a chave de API deu erro `429
+RESOURCE_EXHAUSTED` ("prepayment credits are depleted") — problema de billing do
+projeto Google Cloud vinculado à chave, não bug de código (auth → edge function → RLS
+→ chamada ao Gemini funcionaram, só a resposta do Gemini falhou). O Gabriel já
+regularizou o pagamento na chave atual, mas **pediu para adiar o primeiro teste real
+para mais adiante** — retomar por aí: clicar em "Gerar plano da semana" no PWA e
+conferir se os 7 treinos aparecem. Se falhar de novo, checar `resultadoGemini.debug`
+reintroduzindo temporariamente o modo debug (ver Notas do agente Gemini abaixo).
 
-**Próximo passo combinado:** o **agente Gemini** (gerar/ajustar plano da semana). Plano:
-1. Chave de API do Gemini via Google AI Studio (faixa grátis; a assinatura "Gemini Pro" do
-   consumidor é separada da chave de API).
-2. Uma **Supabase Edge Function** (servidor) guarda a chave em segredo e chama o Gemini —
-   a chave NUNCA vai pro app/PWA (senão fica exposta no bundle público).
-3. No app: botão "Gerar plano da semana" + modo conversacional, que chamam a função e
-   gravam os treinos no banco. Modo do agente: sob demanda + conversacional.
-Alternativa mais rápida que o usuário pode escolher antes: **histórico/estatísticas**
-(não depende de nada externo).
+**Depois disso, os passos que faltam:** histórico/estatísticas; convidar a esposa
+(adicionar o e-mail dela como "usuário de teste" no Google Cloud Console antes dela
+logar, já que o app OAuth ainda está em modo de teste).
 
-**Para retomar o desenvolvimento local:** `npx expo start --web` (abre em
-http://localhost:8081). Reiniciar sempre que mudar `.env`, instalar pacote ou mexer em
-`app.json`/`app.config.js`.
+**Para retomar o desenvolvimento local (opcional — o Gabriel usa o PWA publicado):**
+`npx expo start --web` (abre em http://localhost:8081). Reiniciar sempre que mudar
+`.env`, instalar pacote ou mexer em `app.json`/`app.config.js`.
 
 ## Contexto humano importante
 
@@ -126,9 +127,11 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] Marcar treino como feito — ESCREVE no banco (toggle `concluido` + progresso no topo)
 - [x] Login com Google (Supabase Auth) + porteiro (login vs app) + botão Sair
 - [x] Perfis por usuário + RLS seguro (cada um vê/mexe só no seu, via `auth.uid()`)
-- [x] Publicar como PWA no GitHub Pages — NO AR em https://djgabrielribeiro865.github.io/app-sports/ (deploy automático funcionando após o incidente do GitHub passar)
-- [ ] Agente Gemini gerando o plano  ← **próximo passo**
+- [x] Publicar como PWA no GitHub Pages — NO AR em https://djgabrielribeiro865.github.io/app-sports/ (deploy automático funcionando)
+- [x] App "cru" sem barra do Expo (removida a navegação/template padrão)
+- [x] Agente Gemini — edge function publicada + UI pronta; geração real ainda sem teste de sucesso confirmado ← **retomar aqui**
 - [ ] Histórico + estatísticas
+- [ ] Convidar a esposa (adicionar e-mail como usuário de teste no Google Cloud Console)
 
 ### Notas de auth
 - Google OAuth: client no Google Cloud (projeto `app-sports-503000`), provider Google habilitado no Supabase.
@@ -145,6 +148,32 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - RLS com políticas TEMPORÁRIAS "acesso total" (`temp_acesso_total_*`) — trocar por regras por-usuário quando entrar o login.
 - Reiniciar o servidor (`npx expo start --web`) sempre que mudar `.env`, instalar pacote ou mexer em `app.json`.
 
+### Agente Gemini (geração do plano)
+- Código: `supabase/functions/generate-plan/index.ts` (Supabase Edge Function, Deno).
+- Fluxo: app chama `supabase.functions.invoke('generate-plan', { body: { instrucoes } })`
+  (JWT do usuário vai junto automaticamente) → a função cria um client Supabase
+  "como o usuário" (Authorization forwarded) → chama a API do Gemini
+  (`gemini-2.5-flash`, `generationConfig.responseSchema` força JSON estruturado) →
+  apaga os treinos antigos da semana atual e insere os novos, respeitando a RLS
+  (não usa service_role — só a identidade do próprio usuário).
+- A função sempre responde HTTP 200 com `{ treinos: [...] }` ou `{ error: "..." }` —
+  decisão deliberada pra evitar lidar com `FunctionsHttpError`/`error.context` no
+  client (simplicidade > pureza HTTP aqui).
+- Segredo `GEMINI_API_KEY` guardado via `npx supabase secrets set` — nunca no código
+  nem no `.env` do app (senão vazaria no bundle público do PWA).
+- Deploy da função: `npx supabase functions deploy generate-plan` (não precisa Docker
+  rodando, apesar do aviso). CLI conectado via `npx supabase login --token ...` +
+  `npx supabase link --project-ref bxwbghyumajjhzotscyu`.
+- UI: cartão "🤖 Agente de treinos" em `src/app/index.tsx` (campo de instruções opcional
+  + botão "Gerar plano da semana"/"Gerar novo plano da semana").
+- **Debug**: essa versão do `supabase` CLI não tem `functions logs`. Pra depurar erros do
+  Gemini, reintroduzir temporariamente o campo `debug` na resposta de erro (já foi feito
+  uma vez — ver histórico do git em `supabase/functions/generate-plan/index.ts`) e
+  remover de novo depois de resolver.
+- Erro já visto: `429 RESOURCE_EXHAUSTED` / "prepayment credits are depleted" — billing
+  do projeto Google Cloud da chave, não bug nosso. Resolvido pelo Gabriel regularizando
+  o pagamento; geração real ainda sem teste de sucesso confirmado.
+
 ### Publicação (GitHub Pages)
 - Repo é **público** (GitHub Pages grátis exige repo público). URL do app: **https://djgabrielribeiro865.github.io/app-sports/**.
 - Pages configurado no modo "GitHub Actions" (`gh api ... /pages -f build_type=workflow`).
@@ -153,14 +182,11 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - A chave anon do Supabase fica no workflow (pública por natureza; ok mesmo com repo público). **Reforçar RLS/login antes de considerar os dados protegidos.**
 - Push de workflows exigiu escopo `workflow` no token do `gh` (`gh auth refresh -s workflow`).
 
-## Roadmap (ordem combinada)
+## Roadmap (o que falta)
 
-1. Banco de dados (Supabase) — guardar treinos reais e sincronizar os 2 celulares.
-2. Perfis separados (login de cada um).
-3. Agente Gemini — gerar plano semanal (sob demanda + ajuste conversacional).
-4. Marcar treino como feito.
-5. Histórico + estatísticas.
-6. Publicar o PWA.
+1. **Confirmar o primeiro plano gerado com sucesso pelo Gemini** (retomar aqui).
+2. Histórico + estatísticas.
+3. Convidar a esposa (perfil dela, usuário de teste no Google Cloud Console).
 
 ## Memória relacionada
 
