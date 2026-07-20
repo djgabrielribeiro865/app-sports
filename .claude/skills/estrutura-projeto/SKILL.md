@@ -260,6 +260,17 @@ reportar um bug específico que precise ser reproduzido.
     só lista os dias disponíveis/indisponíveis por nome e manda os indisponíveis serem
     sempre "Descanso". Todos os campos são opcionais; sem perfil preenchido, o prompt
     cai de volta pro comportamento genérico de antes.
+- ⚠️ **Validação do usuário: usar `getUser(jwt)`, nunca `getUser()` sem argumento.**
+  `getUser()` sem args depende de um comportamento interno (`hasCustomAuthorizationHeader`)
+  pra reconhecer o cabeçalho `Authorization` manual como uma "sessão válida" — isso já
+  se comportou de forma inconsistente entre deploys (provavelmente porque
+  `jsr:@supabase/supabase-js@2` não trava a versão exata, então cada deploy pode puxar
+  uma versão ligeiramente diferente da lib). O sintoma foi `AuthSessionMissingError`
+  (erro do lado do CLIENTE, status 400 fixo, não vem do servidor) mesmo com o token
+  certo chegando. Corrigido extraindo o JWT do header (`authHeader.replace(/^Bearer\s+/i, '')`)
+  e passando direto: `supabase.auth.getUser(jwt)` — bypassa essa lógica de "sessão"
+  inteiramente e valida o token isolado, que é o jeito correto/recomendado pra validar
+  um JWT de cliente dentro de uma função servidor (sem storage/sessão persistida).
 - A função sempre responde HTTP 200 com `{ treinos: [...] }` ou `{ error: "..." }` —
   decisão deliberada pra evitar lidar com `FunctionsHttpError`/`error.context` no
   client (simplicidade > pureza HTTP aqui).
