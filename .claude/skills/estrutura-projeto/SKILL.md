@@ -97,10 +97,19 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] Banco de dados Supabase: conta + tabelas (`profiles`, `workouts`) + conexão
 - [x] App LÊ os treinos da semana direto do banco (query em `index.tsx`)
 - [x] Marcar treino como feito — ESCREVE no banco (toggle `concluido` + progresso no topo)
-- [~] Publicar como PWA no GitHub Pages (workflow pronto; deploy em processamento)
-- [ ] Perfis / login (Gabriel e esposa) + RLS seguro  ← **próximo passo**
-- [ ] Agente Gemini gerando o plano
+- [x] Login com Google (Supabase Auth) + porteiro (login vs app) + botão Sair
+- [x] Perfis por usuário + RLS seguro (cada um vê/mexe só no seu, via `auth.uid()`)
+- [~] Publicar como PWA no GitHub Pages (workflow pronto; bloqueado por incidente do GitHub Actions — auto-retry rodando)
+- [ ] Agente Gemini gerando o plano  ← **próximo passo**
 - [ ] Histórico + estatísticas
+
+### Notas de auth
+- Google OAuth: client no Google Cloud (projeto `app-sports-503000`), provider Google habilitado no Supabase.
+- Redirect URLs liberados no Supabase: `http://localhost:8081/**` e `https://djgabrielribeiro865.github.io/app-sports/**`. Site URL = a do Pages.
+- `src/lib/auth.tsx` = AuthProvider (sessão + upsert de perfil no login). `src/components/login-screen.tsx` = tela de login. Porteiro em `src/app/_layout.tsx`.
+- `detectSessionInUrl: true` (captura o retorno OAuth na web).
+- Usuário de teste no consent screen do Google: adicionar o e-mail de cada pessoa que for logar (esposa ainda não logou).
+- Gabriel uid = `1dc91e1b-1d06-4c93-bc02-64893c6962a0`.
 
 ### Notas técnicas do que já foi feito
 - `app.json` → `web.output = "single"` (SPA, renderiza no navegador; necessário pro Supabase funcionar na web).
