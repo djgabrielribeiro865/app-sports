@@ -51,9 +51,14 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
+    // Passamos o token explicitamente (em vez de deixar getUser() adivinhar a
+    // sessão a partir do cabeçalho) — mais confiável nesse contexto de servidor,
+    // onde não existe uma "sessão" persistida de verdade, só o token do pedido.
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
     if (userError || !userData?.user) {
-      return jsonResponse({ error: 'Sessão inválida.' }, 200);
+      console.log('Sessão inválida:', userError?.message);
+      return jsonResponse({ error: 'Sessão inválida. Tente sair e entrar novamente.' }, 200);
     }
     const userId = userData.user.id;
 
