@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
+
+const VERDE = '#22c55e';
 
 // Formato de um treino vindo do banco.
 type Treino = {
@@ -41,16 +44,35 @@ function nomeDoDia(dataISO: string) {
   return DIAS[new Date(ano, mes - 1, dia).getDay()];
 }
 
-function TreinoCard({ treino }: { treino: Treino }) {
+// Círculo de "concluído" que aparece na direita dos treinos de corrida.
+function CheckCircle({ ativo }: { ativo: boolean }) {
+  const theme = useTheme();
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <View
+      style={[
+        styles.check,
+        { borderColor: theme.textSecondary },
+        ativo && { backgroundColor: VERDE, borderColor: VERDE },
+      ]}>
+      {ativo && <ThemedText style={styles.checkMark}>✓</ThemedText>}
+    </View>
+  );
+}
+
+function TreinoCard({ treino, onToggle }: { treino: Treino; onToggle: () => void }) {
+  const ehDescanso = treino.distancia_km == null;
+
+  const conteudo = (
+    <ThemedView type="backgroundElement" style={[styles.card, treino.concluido && styles.cardFeito]}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.dia}>
         {nomeDoDia(treino.data).toUpperCase()}
       </ThemedText>
       <View style={styles.cardRow}>
         <ThemedText style={styles.emoji}>{treino.emoji ?? '🏃'}</ThemedText>
         <View style={styles.cardInfo}>
-          <ThemedText type="smallBold">{treino.tipo}</ThemedText>
+          <ThemedText type="smallBold" style={treino.concluido && styles.textoFeito}>
+            {treino.tipo}
+          </ThemedText>
           {!!treino.descricao && (
             <ThemedText type="small" themeColor="textSecondary">
               {treino.descricao}
@@ -60,8 +82,17 @@ function TreinoCard({ treino }: { treino: Treino }) {
         <ThemedText type="smallBold" style={styles.distancia}>
           {treino.distancia_km != null ? `${treino.distancia_km} km` : '—'}
         </ThemedText>
+        {!ehDescanso && <CheckCircle ativo={treino.concluido} />}
       </View>
     </ThemedView>
+  );
+
+  // Dias de descanso não são "marcáveis"; treinos de corrida sim.
+  if (ehDescanso) return conteudo;
+  return (
+    <Pressable onPress={onToggle} style={({ pressed }) => pressed && styles.pressionado}>
+      {conteudo}
+    </Pressable>
   );
 }
 
@@ -93,8 +124,35 @@ export default function HomeScreen() {
     carregar();
   }, []);
 
-  const totalKm = treinos.reduce((soma, t) => soma + (t.distancia_km ?? 0), 0);
-  const qtdCorridas = treinos.filter((t) => t.distancia_km != null).length;
+  // Marca/desmarca um treino como concluído (atualiza a tela na hora e salva no banco).
+  async function alternarConcluido(treino: Treino) {
+    const novoValor = !treino.concluido;
+
+    // Atualização otimista: muda a tela imediatamente.
+    setTreinos((prev) =>
+      prev.map((t) => (t.id === treino.id ? { ...t, concluido: novoValor } : t)),
+    );
+
+    const { error } = await supabase
+      .from('workouts')
+      .update({
+        concluido: novoValor,
+        concluido_em: novoValor ? new Date().toISOString() : null,
+      })
+      .eq('id', treino.id);
+
+    // Se falhar ao salvar, desfaz a mudança na tela e avisa.
+    if (error) {
+      setTreinos((prev) =>
+        prev.map((t) => (t.id === treino.id ? { ...t, concluido: !novoValor } : t)),
+      );
+      setErro(error.message);
+    }
+  }
+
+  const corridas = treinos.filter((t) => t.distancia_km != null);
+  const totalKm = corridas.reduce((soma, t) => soma + (t.distancia_km ?? 0), 0);
+  const concluidas = corridas.filter((t) => t.concluido).length;
 
   return (
     <ThemedView style={styles.container}>
@@ -108,8 +166,13 @@ export default function HomeScreen() {
             </ThemedText>
             <ThemedText type="subtitle">Plano da semana</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Corrida · {qtdCorridas} treinos · {totalKm} km no total
+              Corrida · {corridas.length} treinos · {totalKm} km no total
             </ThemedText>
+            {corridas.length > 0 && (
+              <ThemedText type="smallBold" style={{ color: VERDE }}>
+                ✓ {concluidas} de {corridas.length} concluídos
+              </ThemedText>
+            )}
           </View>
 
           {carregando && (
@@ -120,7 +183,7 @@ export default function HomeScreen() {
 
           {!!erro && (
             <ThemedView type="backgroundElement" style={styles.card}>
-              <ThemedText type="smallBold">Não consegui carregar os treinos</ThemedText>
+              <ThemedText type="smallBold">Ops, algo deu errado</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {erro}
               </ThemedText>
@@ -138,7 +201,11 @@ export default function HomeScreen() {
 
           <View style={styles.lista}>
             {treinos.map((treino) => (
-              <TreinoCard key={treino.id} treino={treino} />
+              <TreinoCard
+                key={treino.id}
+                treino={treino}
+                onToggle={() => alternarConcluido(treino)}
+              />
             ))}
           </View>
         </ScrollView>
@@ -180,6 +247,12 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     gap: Spacing.two,
   },
+  cardFeito: {
+    opacity: 0.6,
+  },
+  pressionado: {
+    opacity: 0.7,
+  },
   dia: {
     letterSpacing: 1,
   },
@@ -195,7 +268,24 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.half,
   },
+  textoFeito: {
+    textDecorationLine: 'line-through',
+  },
   distancia: {
     fontSize: 16,
+  },
+  check: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMark: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 700,
+    lineHeight: 18,
   },
 });
