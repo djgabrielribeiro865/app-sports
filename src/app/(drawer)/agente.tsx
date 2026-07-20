@@ -49,6 +49,15 @@ export default function AgenteScreen() {
             </ThemedText>
           </View>
 
+          <Pressable onPress={() => router.push('/perfil' as any)}>
+            <ThemedView type="backgroundElement" style={styles.dicaCard}>
+              <ThemedText type="small">
+                💡 Preencha seu <ThemedText type="smallBold">Perfil</ThemedText> (nível,
+                objetivo, dias disponíveis) pra planos mais certeiros. Toque aqui →
+              </ThemedText>
+            </ThemedView>
+          </Pressable>
+
           <ThemedView type="backgroundElement" style={styles.geradorCard}>
             <ThemedText type="small" themeColor="textSecondary">
               Se quiser, conte algo antes de gerar (ex: &quot;essa semana tô cansado,
@@ -113,6 +122,10 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: Spacing.one,
+  },
+  dicaCard: {
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
   },
   geradorCard: {
     padding: Spacing.three,

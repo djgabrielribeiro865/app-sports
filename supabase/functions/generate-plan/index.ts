@@ -21,6 +21,17 @@ type TreinoGerado = {
   emoji: string;
 };
 
+type PerfilAtleta = {
+  nivel: string | null;
+  objetivo: string | null;
+  dias_disponiveis: string[] | null;
+  meta_prova: string | null;
+  meta_data: string | null;
+  restricoes: string | null;
+};
+
+const NOMES_DIAS = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -49,6 +60,12 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const instrucoes: string = typeof body?.instrucoes === 'string' ? body.instrucoes.slice(0, 500) : '';
 
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('nivel, objetivo, dias_disponiveis, meta_prova, meta_data, restricoes')
+      .eq('id', userId)
+      .single();
+
     const { inicioISO, fimISO } = semanaAtual();
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
@@ -56,7 +73,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Chave do Gemini não configurada no servidor.' }, 200);
     }
 
-    const resultadoGemini = await gerarTreinosComGemini(geminiApiKey, inicioISO, fimISO, instrucoes);
+    const resultadoGemini = await gerarTreinosComGemini(
+      geminiApiKey,
+      inicioISO,
+      fimISO,
+      instrucoes,
+      perfil as PerfilAtleta | null,
+    );
     if (resultadoGemini.treinos.length === 0) {
       // O detalhe técnico (resultadoGemini.debug) fica só no log do servidor,
       // não é exposto pro app — evita mostrar erros crus pro usuário.
@@ -119,8 +142,9 @@ async function gerarTreinosComGemini(
   inicioISO: string,
   fimISO: string,
   instrucoes: string,
+  perfil: PerfilAtleta | null,
 ): Promise<{ treinos: TreinoGerado[]; debug?: string }> {
-  const prompt = montarPrompt(inicioISO, fimISO, instrucoes);
+  const prompt = montarPrompt(inicioISO, fimISO, instrucoes, perfil);
 
   let resposta: Response;
   try {
@@ -185,10 +209,50 @@ async function gerarTreinosComGemini(
   }
 }
 
-function montarPrompt(inicio: string, fim: string, instrucoes: string) {
+function montarPrompt(inicio: string, fim: string, instrucoes: string, perfil: PerfilAtleta | null) {
+  const NOMES_NIVEL: Record<string, string> = {
+    iniciante: 'iniciante',
+    intermediario: 'intermediário',
+    avancado: 'avançado',
+  };
+
+  const linhasPerfil: string[] = [];
+
+  if (perfil?.nivel) {
+    linhasPerfil.push(`- Nível do atleta: ${NOMES_NIVEL[perfil.nivel] ?? perfil.nivel}.`);
+  }
+  if (perfil?.objetivo) {
+    linhasPerfil.push(`- Objetivo do atleta: "${perfil.objetivo}".`);
+  }
+  if (perfil?.restricoes) {
+    linhasPerfil.push(`- Restrições/lesões a respeitar: "${perfil.restricoes}". NÃO prescreva nada que agrave isso.`);
+  }
+  if (perfil?.meta_prova) {
+    let detalheData = '';
+    if (perfil.meta_data) {
+      const hoje = new Date(inicio + 'T00:00:00Z');
+      const meta = new Date(perfil.meta_data + 'T00:00:00Z');
+      const semanasRestantes = Math.max(0, Math.round((meta.getTime() - hoje.getTime()) / (7 * 24 * 3600 * 1000)));
+      detalheData = ` em ${perfil.meta_data}, faltam aproximadamente ${semanasRestantes} semana(s)`;
+    }
+    linhasPerfil.push(
+      `- Meta de prova: "${perfil.meta_prova}"${detalheData}. Periodize o treino pensando nessa meta (evolua o volume gradualmente rumo a ela, sem overtraining).`,
+    );
+  }
+
+  const diasDisponiveis = perfil?.dias_disponiveis?.filter((d) => NOMES_DIAS.includes(d)) ?? [];
+  let linhaDias = '';
+  if (diasDisponiveis.length > 0) {
+    const diasIndisponiveis = NOMES_DIAS.filter((d) => !diasDisponiveis.includes(d));
+    linhaDias = `
+- Dias da semana em que o atleta PODE treinar: ${diasDisponiveis.join(', ')}.
+- Dias em que o atleta NÃO PODE treinar: ${diasIndisponiveis.length > 0 ? diasIndisponiveis.join(', ') : 'nenhum'}. Nesses dias, "tipo" deve ser obrigatoriamente "Descanso" com distancia_km = null.
+- Os dias da semana, em ordem, são: 1=${NOMES_DIAS[0]} (${inicio}), 2=${NOMES_DIAS[1]}, 3=${NOMES_DIAS[2]}, 4=${NOMES_DIAS[3]}, 5=${NOMES_DIAS[4]}, 6=${NOMES_DIAS[5]}, 7=${NOMES_DIAS[6]} (${fim}).`;
+  }
+
   return `Você é um treinador de corrida experiente, no estilo do app Runna.
 Crie um plano de treinos de corrida para UMA semana, de segunda-feira (${inicio}) a domingo (${fim}), em português do Brasil.
-
+${linhasPerfil.length > 0 ? `\nSobre este atleta específico:\n${linhasPerfil.join('\n')}\n` : ''}
 Regras:
 - Gere exatamente 7 itens, um para cada dia da semana (${inicio} até ${fim}), em ordem, um por dia.
 - Alterne treinos leves, um treino intervalado/tiros, um treino longo no fim de semana, e pelo menos 1 a 2 dias de descanso.
@@ -196,7 +260,7 @@ Regras:
 - "tipo" deve ser curto (ex: "Corrida leve", "Intervalado", "Longão", "Descanso").
 - "descricao" deve ser uma frase curta e prática (ex: "6x 400m forte + 200m trote").
 - "emoji" deve ser um único emoji relacionado (🏃 corrida leve, ⚡ intervalado, 🔥 longão, 😴 descanso).
-- Seja realista para um corredor amador/intermediário, não um profissional.
+- Seja realista pro nível informado do atleta (ou amador/intermediário, se o nível não foi informado).${linhaDias}
 ${instrucoes ? `- Pedido específico da pessoa para esta semana: "${instrucoes}". Leve isso em conta ao ajustar intensidade e volume.` : ''}
 
 Responda apenas com o JSON no formato pedido.`;
