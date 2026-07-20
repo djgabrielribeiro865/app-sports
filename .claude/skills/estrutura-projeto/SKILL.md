@@ -156,7 +156,7 @@ a versão certa por plataforma).
 
 ## GitHub / versionamento
 
-- Repo privado: **https://github.com/djgabrielribeiro865/app-sports** (remote `origin`, branch `main`).
+- Repo **público** (necessário pro GitHub Pages grátis): **https://github.com/djgabrielribeiro865/app-sports** (remote `origin`, branch `main`).
 - **Workflow combinado com o Gabriel: a cada atualização/feature, fazer `git commit` + `git push`.**
   Isso prepara o terreno pra publicação automática do PWA. Mensagens de commit em português.
 - `.env` e `.claude/settings.local.json` são gitignored — nunca versionar.
@@ -179,7 +179,7 @@ reportar um bug específico que precise ser reproduzido.
 ## Estado atual (atualize conforme evolui)
 
 - [x] App Expo criado e rodando na web
-- [x] Tela "Plano da semana" de corrida (`src/app/index.tsx`)
+- [x] Tela "Plano da semana" de corrida (`src/app/(drawer)/index.tsx`)
 - [x] Banco de dados Supabase: conta + tabelas (`profiles`, `workouts`) + conexão
 - [x] App LÊ os treinos da semana direto do banco (query em `index.tsx`)
 - [x] Marcar treino como feito — ESCREVE no banco (toggle `concluido` + progresso no topo)
@@ -226,9 +226,13 @@ reportar um bug específico que precise ser reproduzido.
 ### Notas técnicas do que já foi feito
 - `app.json` → `web.output = "single"` (SPA, renderiza no navegador; necessário pro Supabase funcionar na web).
 - Conexão em `src/lib/supabase.ts`; credenciais em `.env` (vars `EXPO_PUBLIC_SUPABASE_URL` / `_ANON_KEY`), que é gitignored.
-- SQL das tabelas + seed documentado em `db/01_schema_e_seed.sql`.
-- RLS com políticas TEMPORÁRIAS "acesso total" (`temp_acesso_total_*`) — trocar por regras por-usuário quando entrar o login.
-- Reiniciar o servidor (`npx expo start --web`) sempre que mudar `.env`, instalar pacote ou mexer em `app.json`.
+- SQL das tabelas + seed documentado em `db/01_schema_e_seed.sql` (schema inicial),
+  `db/02_auth_e_rls.sql` (RLS por-usuário, substituiu as políticas temporárias
+  "acesso total" do início), `db/03_reset_workouts.sql` (reset da v2) e
+  `db/04_perfil_atleta.sql` (campos do Perfil). RLS hoje é por-usuário de verdade
+  (`auth.uid()`), não tem mais política temporária nenhuma.
+- Se algum dia for preciso rodar local (só a pedido do Gabriel — ver regra de teste):
+  reiniciar o servidor sempre que mudar `.env`, instalar pacote ou mexer em `app.json`.
 
 ### Agente Gemini (geração do plano)
 - Código: `supabase/functions/generate-plan/index.ts` (Supabase Edge Function, Deno).
