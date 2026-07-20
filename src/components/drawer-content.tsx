@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 
 const ITENS = [
   { rota: 'index', label: 'Plano da semana', emoji: '🏃' },
+  { rota: 'agente', label: 'Agente de treinos', emoji: '🤖' },
   { rota: 'historico', label: 'Histórico', emoji: '📜' },
   { rota: 'estatisticas', label: 'Estatísticas', emoji: '📊' },
 ] as const;
