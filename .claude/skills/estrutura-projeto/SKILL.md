@@ -12,7 +12,7 @@ o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 
 **Tudo publicado e funcionando no PWA real**: https://djgabrielribeiro865.github.io/app-sports/
 — plano da semana, marcar como feito, login com Google, perfis + RLS seguros, e
-**navegação em gaveta (drawer) com 4 telas: Plano da semana, Agente de treinos
+**navegação em gaveta (drawer) com 5 telas: Plano da semana, Perfil, Agente de treinos
 (gerar plano via Gemini), Histórico e Estatísticas** (com gráficos). Tudo commitado e
 no GitHub (branch `main`, limpo).
 
@@ -20,15 +20,18 @@ no GitHub (branch `main`, limpo).
 os perfis separados e a RLS por-usuário funcionam na prática (cada um vê só o seu
 plano).
 
+**Banco de treinos foi resetado** (pedido do Gabriel, `db/03_reset_workouts.sql`) pra
+começar a v2 do zero, sem dados de exemplo. Perfis/login/configurações ficaram intactos.
+
+**Agente Gemini agora usa o Perfil do atleta** (`db/04_perfil_atleta.sql` +
+`src/app/(drawer)/perfil.tsx`): nível, objetivo, dias disponíveis pra treinar, meta de
+prova+data e restrições/lesões — tudo isso é lido pela edge function e injetado no
+prompt (ver seção "Agente Gemini" abaixo pros detalhes de como cada campo é usado).
 **Pendência conhecida:** a geração real com o Gemini ainda **não teve um teste de
-sucesso confirmado**. No único teste feito, a chave de API deu erro `429
-RESOURCE_EXHAUSTED` ("prepayment credits are depleted") — problema de billing do
-projeto Google Cloud vinculado à chave, não bug de código (auth → edge function → RLS
-→ chamada ao Gemini funcionaram, só a resposta do Gemini falhou). O Gabriel já
-regularizou o pagamento na chave atual, mas **pediu para adiar o primeiro teste real
-para mais adiante** — retomar por aí: no PWA, abrir "Agente de treinos" no menu e
-gerar um plano. Se falhar, checar `resultadoGemini.debug` reintroduzindo temporariamente
-o modo debug (ver Notas do agente Gemini abaixo).
+sucesso confirmado** (billing da chave já foi resolvido; o Gabriel pediu pra testar
+mais pra frente). Ao retomar: preencher o Perfil de cada um (Gabriel e esposa) e gerar
+um plano pra ver o resultado. Se falhar, checar `resultadoGemini.debug` reintroduzindo
+temporariamente o modo debug (ver Notas do agente Gemini abaixo).
 
 **Depois disso, o roadmap original está completo.** Próximos passos seriam iniciativa
 livre: refinar Estatísticas (mais métricas), outro esporte além de corrida, notificações,
@@ -81,11 +84,12 @@ src/
     (drawer)/              # Grupo de rotas com navegação em gaveta (não aparece na URL)
       _layout.tsx          # <Drawer> do expo-router/drawer: hambúrguer, overlay, drawerContent custom
       index.tsx             # "Plano da semana" (rota "/") — só o plano: ver + marcar como feito
-      agente.tsx              # "Agente de treinos" (rota "/agente") — gerar plano via Gemini
-      historico.tsx             # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
-      estatisticas.tsx           # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
+      perfil.tsx              # "Perfil" (rota "/perfil") — nível, objetivo, dias disponíveis, meta, restrições
+      agente.tsx                # "Agente de treinos" (rota "/agente") — gerar plano via Gemini
+      historico.tsx               # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
+      estatisticas.tsx              # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
   components/             # Peças reutilizáveis de UI
-    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 4 itens, botão Sair
+    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 5 itens, botão Sair
     treino-card.tsx         # <TreinoCard> — usado em "Plano da semana" e "Histórico"
     donut-chart.tsx          # Anel de progresso (SVG) — usado nas Estatísticas
     login-screen.tsx       # Tela de login (botão Entrar com Google)
@@ -97,9 +101,10 @@ src/
                            # FONTE DA VERDADE de estilo
   lib/
     treinos.ts             # Tipo Treino, DIAS, helpers de data (semana/formatação),
-                           # atualizarConclusao() — compartilhado entre as 3 telas
-    auth.tsx                # AuthProvider (sessão do Supabase)
-    supabase.ts              # Cliente do Supabase
+                           # atualizarConclusao() — compartilhado entre as telas de treino
+    perfil.ts               # Tipo PerfilAtleta, DIAS_SEMANA, buscarPerfil()/salvarPerfil()
+    auth.tsx                  # AuthProvider (sessão do Supabase)
+    supabase.ts                # Cliente do Supabase
   hooks/
     use-theme.ts           # Retorna as cores do tema atual (claro/escuro)
     use-color-scheme.ts
@@ -132,9 +137,9 @@ a versão certa por plataforma).
 - Implementado com `expo-router/drawer` (grupo de rotas `src/app/(drawer)/`). Requer
   `GestureHandlerRootView` envolvendo o app (está em `src/app/_layout.tsx`).
 - `drawerContent` é **customizado** (`src/components/drawer-content.tsx`, não o padrão do
-  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 4 itens
-  (`ITENS` — Plano da semana, Agente de treinos, Histórico, Estatísticas) com emoji +
-  destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
+  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 5 itens
+  (`ITENS` — Plano da semana, Perfil, Agente de treinos, Histórico, Estatísticas) com
+  emoji + destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
   `navigation.navigate(rota)` + `navigation.closeDrawer()` explicitamente.
 - ⚠️ **Rotas tipadas ficam desatualizadas**: `.expo/types/router.d.ts` (gerado, gitignored)
   só é regenerado pelo servidor dev interativo (`expo start`), que **não rodamos mais**
@@ -189,6 +194,11 @@ reportar um bug específico que precise ser reproduzido.
 - [x] Navegação em gaveta (drawer) com hambúrguer, overlay, fecha ao escolher
 - [x] Tela Histórico — semanas passadas agrupadas, cards expansíveis, marcar/desmarcar retroativo
 - [x] Tela Estatísticas — km percorridos, sequência (streak), taxa de conclusão (donut), km por semana (barras)
+- [x] "Agente de treinos" virou tela própria no menu (antes era um cartão dentro do Plano da semana)
+- [x] Tela Perfil — nível, objetivo, dias disponíveis, meta de prova+data, restrições/lesões
+- [x] Agente Gemini lê o Perfil e injeta no prompt (nível, dias disponíveis viram regra
+      obrigatória de treino/descanso, meta de prova com prazo calculado, restrições)
+- [x] Banco de treinos resetado (v2 limpa, sem dados de exemplo) — perfis/login intactos
 
 ### Notas de auth
 - Google OAuth: client no Google Cloud (projeto `app-sports-503000`), provider Google habilitado no Supabase.
@@ -209,10 +219,23 @@ reportar um bug específico que precise ser reproduzido.
 - Código: `supabase/functions/generate-plan/index.ts` (Supabase Edge Function, Deno).
 - Fluxo: app chama `supabase.functions.invoke('generate-plan', { body: { instrucoes } })`
   (JWT do usuário vai junto automaticamente) → a função cria um client Supabase
-  "como o usuário" (Authorization forwarded) → chama a API do Gemini
-  (`gemini-2.5-flash`, `generationConfig.responseSchema` força JSON estruturado) →
-  apaga os treinos antigos da semana atual e insere os novos, respeitando a RLS
-  (não usa service_role — só a identidade do próprio usuário).
+  "como o usuário" (Authorization forwarded) → busca o **Perfil** do usuário
+  (`profiles`: nivel, objetivo, dias_disponiveis, meta_prova, meta_data, restricoes) →
+  chama a API do Gemini (`gemini-2.5-flash`, `generationConfig.responseSchema` força
+  JSON estruturado) → apaga os treinos antigos da semana atual e insere os novos,
+  respeitando a RLS (não usa service_role — só a identidade do próprio usuário).
+- **Perfil no prompt** (`montarPrompt` em `supabase/functions/generate-plan/index.ts`):
+  - `nivel` → linha "Nível do atleta: X" (calibra intensidade/volume).
+  - `objetivo` e `restricoes` → citados literalmente entre aspas no prompt.
+  - `meta_prova` + `meta_data` → calcula semanas restantes (`hoje` = segunda-feira da
+    semana atual) e pede periodização gradual rumo à meta.
+  - `dias_disponiveis` (array de chaves tipo `'segunda'`, `'sabado'`) → vira **regra
+    obrigatória**: como os 7 dias gerados são sempre sequenciais a partir da segunda
+    (posição 1 = segunda, ..., posição 7 = domingo), a função já sabe exatamente quais
+    posições são "disponível" vs "indisponível" sem precisar que o Gemini calcule nada —
+    só lista os dias disponíveis/indisponíveis por nome e manda os indisponíveis serem
+    sempre "Descanso". Todos os campos são opcionais; sem perfil preenchido, o prompt
+    cai de volta pro comportamento genérico de antes.
 - A função sempre responde HTTP 200 com `{ treinos: [...] }` ou `{ error: "..." }` —
   decisão deliberada pra evitar lidar com `FunctionsHttpError`/`error.context` no
   client (simplicidade > pureza HTTP aqui).
