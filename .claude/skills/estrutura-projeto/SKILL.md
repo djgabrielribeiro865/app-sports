@@ -11,13 +11,10 @@ o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 ## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-20
 
 **Tudo publicado e funcionando no PWA real** (não só local):
-https://djgabrielribeiro865.github.io/app-sports/ — ver plano da semana, marcar como
-feito, login com Google, perfis + RLS seguros, app "cru" sem barra do Expo, e o
-**agente Gemini já integrado** (edge function `generate-plan` publicada e ligada ao
-botão "Gerar plano da semana" no app). Workflow de deploy também está com as GitHub
-Actions atualizadas (checkout v7, setup-node v7 com `node-version: lts/*`,
-upload-pages-artifact v5, deploy-pages v5 — sem avisos de depreciação). Tudo commitado
-e no GitHub (branch `main`, limpo).
+https://djgabrielribeiro865.github.io/app-sports/ — plano da semana, marcar como feito,
+login com Google, perfis + RLS seguros, agente Gemini integrado, e agora **navegação em
+gaveta (drawer) com 3 telas: Plano da semana, Histórico e Estatísticas** (com gráficos).
+Tudo commitado e no GitHub (branch `main`, limpo).
 
 **A esposa já testou o login com a própria conta Google, com sucesso** — confirma que
 os perfis separados e a RLS por-usuário funcionam na prática (cada um vê só o seu
@@ -33,7 +30,9 @@ para mais adiante** — retomar por aí: clicar em "Gerar plano da semana" no PW
 conferir se os 7 treinos aparecem. Se falhar de novo, checar `resultadoGemini.debug`
 reintroduzindo temporariamente o modo debug (ver Notas do agente Gemini abaixo).
 
-**Depois disso, o que falta é:** histórico/estatísticas.
+**Depois disso, o roadmap original está completo.** Próximos passos seriam iniciativa
+livre: refinar Estatísticas (mais métricas), outro esporte além de corrida, notificações,
+etc. — perguntar ao Gabriel o que ele quer em seguida.
 
 **Itens de manutenção em aberto (não bloqueantes):** trocar/revogar o token de acesso
 do Supabase e a chave do Gemini que apareceram em texto puro no chat durante a
@@ -66,30 +65,47 @@ app **Runna** (comprado pela Strava). Três peças que conversam:
 | App | **Expo (React Native)** ~57, roteador `expo-router` | Um código → iPhone, Android e web |
 | Distribuição inicial | **PWA** (web) | `npx expo start --web`. Porta aberta pro nativo depois (ex: GPS de corrida) |
 | Linguagem | **TypeScript** | Alias de import `@/` → `src/` |
-| Banco/Auth | **Supabase** (planejado) | Grátis. Sincroniza os dois celulares |
-| IA | **Google Gemini** (conta Pro do Gabriel) | Agente gera plano semanal. Modo: sob demanda + conversacional |
+| Banco/Auth | **Supabase** | Grátis. Sincroniza os dois celulares. Auth via Google OAuth |
+| IA | **Google Gemini** (`gemini-2.5-flash` via API) | Agente gera plano semanal, rodando numa Edge Function. Modo: sob demanda + conversacional |
 
 ## Estrutura de pastas
 
 ```
 src/
-  app/                 # As TELAS (cada arquivo = uma rota, via expo-router)
-    _layout.tsx        # Layout raiz: ThemeProvider + AuthProvider + Porteiro (login/app via <Slot/>)
-    index.tsx          # Única tela hoje: "Plano da semana" (lê do Supabase)
-  components/          # Peças reutilizáveis de UI
-    login-screen.tsx   # Tela de login (botão Entrar com Google)
-    themed-text.tsx    # <ThemedText type="..."> — todo texto passa por aqui
-    themed-view.tsx    # <ThemedView type="..."> — containers com cor de tema
-    ...                # animated-icon, hint-row, external-link, web-badge, ui/collapsible
+  app/                    # As TELAS (cada arquivo = uma rota, via expo-router)
+    _layout.tsx           # Layout raiz: ThemeProvider + GestureHandlerRootView + AuthProvider
+                           # + Porteiro (login vs <Slot/>, que renderiza o grupo (drawer))
+    (drawer)/              # Grupo de rotas com navegação em gaveta (não aparece na URL)
+      _layout.tsx          # <Drawer> do expo-router/drawer: hambúrguer, overlay, drawerContent custom
+      index.tsx             # "Plano da semana" (rota "/")
+      historico.tsx          # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
+      estatisticas.tsx        # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
+  components/             # Peças reutilizáveis de UI
+    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 3 itens, botão Sair
+    treino-card.tsx         # <TreinoCard> — usado em "Plano da semana" e "Histórico"
+    donut-chart.tsx          # Anel de progresso (SVG) — usado nas Estatísticas
+    login-screen.tsx       # Tela de login (botão Entrar com Google)
+    themed-text.tsx        # <ThemedText type="..."> — todo texto passa por aqui
+    themed-view.tsx        # <ThemedView type="..."> — containers com cor de tema
+    ...                    # animated-icon, hint-row, external-link, web-badge, ui/collapsible
   constants/
-    theme.ts           # Cores (claro/escuro), Fonts, Spacing, larguras. FONTE DA VERDADE de estilo
+    theme.ts              # Colors (claro/escuro), Accent (verde/azul/cinza), Fonts, Spacing.
+                           # FONTE DA VERDADE de estilo
+  lib/
+    treinos.ts             # Tipo Treino, DIAS, helpers de data (semana/formatação),
+                           # atualizarConclusao() — compartilhado entre as 3 telas
+    auth.tsx                # AuthProvider (sessão do Supabase)
+    supabase.ts              # Cliente do Supabase
   hooks/
-    use-theme.ts       # Retorna as cores do tema atual (claro/escuro)
+    use-theme.ts           # Retorna as cores do tema atual (claro/escuro)
     use-color-scheme.ts
-  global.css           # CSS base (web)
-assets/images/         # Ícones, splash, ícones das abas (tabIcons/)
-app.json               # Config do Expo (nome, ícones, plugins, web output=static)
-package.json           # Dependências e scripts
+  global.css               # CSS base (web)
+supabase/functions/       # Edge Functions (rodam no servidor, runtime Deno — fora do tsconfig do app)
+  generate-plan/index.ts   # Agente Gemini
+assets/images/            # Ícones, splash
+app.json                  # Config do Expo (nome, ícones, plugins, web output=single)
+app.config.js              # Aplica EXPO_BASE_URL só na publicação (dev local fica na raiz)
+package.json               # Dependências e scripts
 ```
 
 Arquivos `*.web.tsx` são variantes só-web de um componente (o Expo escolhe automaticamente
@@ -106,12 +122,22 @@ a versão certa por plataforma).
 
 ## Navegação
 
-- **Sem barra de navegação** (app "cru", pedido do Gabriel). O `_layout.tsx` renderiza `<Slot/>`
-  quando logado, que mostra a rota atual. Hoje só existe `index`.
-- A barra do template Expo (`app-tabs*.tsx`, "Expo Starter"/Home/Explore/Docs) e a tela `explore`
-  foram REMOVIDAS.
-- Adicionar tela nova = criar `src/app/nome.tsx`. Quando houver mais de uma tela e quisermos
-  navegação, dá pra introduzir um menu/abas limpo (sem marca Expo).
+- **Gaveta (drawer) com hambúrguer**, pedido explícito do Gabriel: ícone ☰ no canto
+  superior esquerdo abre um menu que desliza **por cima** do conteúdo (`drawerType: 'front'`)
+  e **fecha automaticamente** ao escolher uma aba.
+- Implementado com `expo-router/drawer` (grupo de rotas `src/app/(drawer)/`). Requer
+  `GestureHandlerRootView` envolvendo o app (está em `src/app/_layout.tsx`).
+- `drawerContent` é **customizado** (`src/components/drawer-content.tsx`, não o padrão do
+  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 3 itens
+  com emoji + destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
+  `navigation.navigate(rota)` + `navigation.closeDrawer()` explicitamente.
+- Cabeçalho do Drawer (`screenOptions` em `(drawer)/_layout.tsx`) fica minimalista:
+  só o hambúrguer, sem título (cada tela já mostra seu próprio título grande como conteúdo).
+- ⚠️ **Import da tipagem**: usar `DrawerContentComponentProps` de `expo-router/drawer`
+  (não de `@react-navigation/drawer` diretamente) — os tipos não são intercambiáveis
+  (erro de branded type no TS) mesmo sendo estruturalmente iguais em runtime.
+- Adicionar tela nova = criar `src/app/(drawer)/nome.tsx` + um item em `ITENS` no
+  `drawer-content.tsx`.
 
 ## GitHub / versionamento
 
@@ -120,12 +146,20 @@ a versão certa por plataforma).
   Isso prepara o terreno pra publicação automática do PWA. Mensagens de commit em português.
 - `.env` e `.claude/settings.local.json` são gitignored — nunca versionar.
 
-## Como rodar (dev)
+## Como rodar (dev) e workflow de teste
 
 ```bash
 npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 # npx expo start         # + QR code pra testar no celular com o app "Expo Go"
 ```
+
+⚠️ **Regra combinada com o Gabriel: NÃO rodar o servidor local nem testar via browser
+automation (nem local nem no PWA publicado) por conta própria.** Ele é o QA — testa
+manualmente o PWA publicado e avisa se algo quebrar. O fluxo correto após uma mudança é:
+`npx tsc --noEmit` (checar tipos) → `npx expo export -p web` se quiser validar que
+compila → commit + push (dispara a publicação automática) → avisar que está no ar.
+Só usar o servidor local ou abrir o navegador se o Gabriel pedir explicitamente ou
+reportar um bug específico que precise ser reproduzido.
 
 ## Estado atual (atualize conforme evolui)
 
@@ -140,7 +174,9 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] App "cru" sem barra do Expo (removida a navegação/template padrão)
 - [x] Agente Gemini — edge function publicada + UI pronta; geração real ainda sem teste de sucesso confirmado ← **retomar aqui**
 - [x] Esposa testou o login com a própria conta Google — sucesso (perfis/RLS separados confirmados na prática)
-- [ ] Histórico + estatísticas
+- [x] Navegação em gaveta (drawer) com hambúrguer, overlay, fecha ao escolher
+- [x] Tela Histórico — semanas passadas agrupadas, cards expansíveis, marcar/desmarcar retroativo
+- [x] Tela Estatísticas — km percorridos, sequência (streak), taxa de conclusão (donut), km por semana (barras)
 
 ### Notas de auth
 - Google OAuth: client no Google Cloud (projeto `app-sports-503000`), provider Google habilitado no Supabase.
@@ -183,6 +219,27 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
   do projeto Google Cloud da chave, não bug nosso. Resolvido pelo Gabriel regularizando
   o pagamento; geração real ainda sem teste de sucesso confirmado.
 
+### Histórico e Estatísticas — decisões de cálculo
+- **Histórico**: busca treinos com `data < segunda-feira atual` (semana em curso fica só
+  no Plano da semana, sem duplicar). Agrupa por semana via `segundaDaData()`, mais recente
+  primeiro. Cada card expande/recolhe (estado local `semanaAberta`, um de cada vez).
+- **Estatísticas**: busca TODOS os treinos (sem filtro de data).
+  - *Km percorridos* = soma de `distancia_km` só dos treinos **concluídos** (km real, não planejado).
+  - *Taxa de conclusão* = concluídos ÷ total, mas só entre corridas com `data <= hoje`
+    (não penaliza treinos futuros que ainda não tiveram chance de acontecer).
+  - *Sequência (streak)* = nº de semanas consecutivas (mais recente pra trás) **já
+    encerradas** (domingo < hoje) em que TODOS os treinos de corrida planejados foram
+    concluídos. Semanas sem nenhuma corrida planejada são puladas (não contam nem quebram).
+  - *Gráfico km por semana* = últimas 8 semanas, km **concluídos** (não planejados).
+  - Se não houver corridas passadas / km > 0, os cards de donut/gráfico ficam ocultos
+    (evita mostrar um gráfico vazio ou 0/0 sem sentido).
+- `DonutChart` (`src/components/donut-chart.tsx`) usa `react-native-svg`. ⚠️ Para girar o
+  arco, usar `transform={`rotate(-90 cx cy)`}` no `<Circle>` — **não** usar as props
+  `rotation`/`origin` do react-native-svg, elas geram um atributo `transform-origin` que o
+  React acusa como "Invalid DOM property" no build web (bug já visto e corrigido).
+- O gráfico de barras (km por semana) é feito com `View`s simples (sem SVG) — barras
+  crescem por `height` percentual dentro de uma "trilho" de altura fixa.
+
 ### Publicação (GitHub Pages)
 - Repo é **público** (GitHub Pages grátis exige repo público). URL do app: **https://djgabrielribeiro865.github.io/app-sports/**.
 - Pages configurado no modo "GitHub Actions" (`gh api ... /pages -f build_type=workflow`).
@@ -194,7 +251,8 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 ## Roadmap (o que falta)
 
 1. **Confirmar o primeiro plano gerado com sucesso pelo Gemini** (retomar aqui).
-2. Histórico + estatísticas.
+2. Daí em diante, o MVP original está completo — próximos passos ficam a critério do
+   Gabriel (outro esporte, mais métricas, notificações, etc.).
 
 ## Memória relacionada
 
