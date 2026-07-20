@@ -124,7 +124,7 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] Marcar treino como feito — ESCREVE no banco (toggle `concluido` + progresso no topo)
 - [x] Login com Google (Supabase Auth) + porteiro (login vs app) + botão Sair
 - [x] Perfis por usuário + RLS seguro (cada um vê/mexe só no seu, via `auth.uid()`)
-- [~] Publicar como PWA no GitHub Pages (workflow pronto; bloqueado por incidente do GitHub Actions — auto-retry rodando)
+- [x] Publicar como PWA no GitHub Pages — NO AR em https://djgabrielribeiro865.github.io/app-sports/ (deploy automático funcionando após o incidente do GitHub passar)
 - [ ] Agente Gemini gerando o plano  ← **próximo passo**
 - [ ] Histórico + estatísticas
 
