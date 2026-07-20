@@ -76,6 +76,13 @@ a versão certa por plataforma).
   aponta pra uma tela `src/app/X.tsx`. Hoje: `index` (Home) e `explore`.
 - Adicionar tela nova = criar `src/app/nome.tsx` + um `Trigger` em `app-tabs.tsx`.
 
+## GitHub / versionamento
+
+- Repo privado: **https://github.com/djgabrielribeiro865/app-sports** (remote `origin`, branch `main`).
+- **Workflow combinado com o Gabriel: a cada atualização/feature, fazer `git commit` + `git push`.**
+  Isso prepara o terreno pra publicação automática do PWA. Mensagens de commit em português.
+- `.env` e `.claude/settings.local.json` são gitignored — nunca versionar.
+
 ## Como rodar (dev)
 
 ```bash
