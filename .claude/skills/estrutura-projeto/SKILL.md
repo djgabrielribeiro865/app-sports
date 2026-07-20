@@ -96,11 +96,11 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - [x] Tela "Plano da semana" de corrida (`src/app/index.tsx`)
 - [x] Banco de dados Supabase: conta + tabelas (`profiles`, `workouts`) + conexão
 - [x] App LÊ os treinos da semana direto do banco (query em `index.tsx`)
-- [ ] Marcar treino como feito (escrever no banco)  ← **próximo passo**
-- [ ] Perfis / login (Gabriel e esposa) + RLS seguro
+- [x] Marcar treino como feito — ESCREVE no banco (toggle `concluido` + progresso no topo)
+- [~] Publicar como PWA no GitHub Pages (workflow pronto; deploy em processamento)
+- [ ] Perfis / login (Gabriel e esposa) + RLS seguro  ← **próximo passo**
 - [ ] Agente Gemini gerando o plano
 - [ ] Histórico + estatísticas
-- [ ] Publicar como PWA (URL acessível de qualquer lugar)
 
 ### Notas técnicas do que já foi feito
 - `app.json` → `web.output = "single"` (SPA, renderiza no navegador; necessário pro Supabase funcionar na web).
@@ -108,6 +108,14 @@ npx expo start --web     # abre em http://localhost:8081 (PWA/navegador)
 - SQL das tabelas + seed documentado em `db/01_schema_e_seed.sql`.
 - RLS com políticas TEMPORÁRIAS "acesso total" (`temp_acesso_total_*`) — trocar por regras por-usuário quando entrar o login.
 - Reiniciar o servidor (`npx expo start --web`) sempre que mudar `.env`, instalar pacote ou mexer em `app.json`.
+
+### Publicação (GitHub Pages)
+- Repo é **público** (GitHub Pages grátis exige repo público). URL do app: **https://djgabrielribeiro865.github.io/app-sports/**.
+- Pages configurado no modo "GitHub Actions" (`gh api ... /pages -f build_type=workflow`).
+- Deploy automático a cada push via `.github/workflows/deploy.yml` (exporta web com `EXPO_BASE_URL=/app-sports`, adiciona `.nojekyll` e `404.html`, publica).
+- `app.config.js` aplica o baseUrl só quando `EXPO_BASE_URL` existe → dev local segue na raiz.
+- A chave anon do Supabase fica no workflow (pública por natureza; ok mesmo com repo público). **Reforçar RLS/login antes de considerar os dados protegidos.**
+- Push de workflows exigiu escopo `workflow` no token do `gh` (`gh auth refresh -s workflow`).
 
 ## Roadmap (ordem combinada)
 
