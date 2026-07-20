@@ -8,6 +8,31 @@ description: Documentação viva do app-sports — visão, stack, estrutura de p
 Documento de referência do projeto. **Mantenha atualizado**: sempre que a arquitetura,
 o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 
+## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-19
+
+**Funcionando de ponta a ponta (local):** app Expo/PWA + Supabase, ver plano da semana,
+marcar treino como feito (salva no banco), login com Google, perfis por usuário e RLS
+segura (cada um só vê/mexe no seu). Tudo commitado e no GitHub (branch `main`, limpo).
+
+**Pendência conhecida:** publicação do PWA no GitHub Pages ficou **bloqueada por um
+incidente do GitHub Actions** (degradação em 2026-07-19). A configuração está 100% pronta;
+ao retomar, é só re-disparar o deploy: `gh workflow run deploy.yml` (ou dar um push). URL
+final será https://djgabrielribeiro865.github.io/app-sports/. Confirmar no celular depois.
+
+**Próximo passo combinado:** o **agente Gemini** (gerar/ajustar plano da semana). Plano:
+1. Chave de API do Gemini via Google AI Studio (faixa grátis; a assinatura "Gemini Pro" do
+   consumidor é separada da chave de API).
+2. Uma **Supabase Edge Function** (servidor) guarda a chave em segredo e chama o Gemini —
+   a chave NUNCA vai pro app/PWA (senão fica exposta no bundle público).
+3. No app: botão "Gerar plano da semana" + modo conversacional, que chamam a função e
+   gravam os treinos no banco. Modo do agente: sob demanda + conversacional.
+Alternativa mais rápida que o usuário pode escolher antes: **histórico/estatísticas**
+(não depende de nada externo).
+
+**Para retomar o desenvolvimento local:** `npx expo start --web` (abre em
+http://localhost:8081). Reiniciar sempre que mudar `.env`, instalar pacote ou mexer em
+`app.json`/`app.config.js`.
+
 ## Contexto humano importante
 
 - O dono (Gabriel) **nunca programou**. Escreva 100% do código, explique cada passo em
