@@ -8,6 +8,10 @@ description: Documentação viva do app-sports — visão, stack, estrutura de p
 Documento de referência do projeto. **Mantenha atualizado**: sempre que a arquitetura,
 o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 
+> ⚠️ **Nome do app pro usuário final é "Runner"** (trocado em 2026-07-20). "app-sports"
+> continua sendo o nome técnico interno (repo do GitHub, slug do Expo, pacote npm,
+> pasta do projeto) — não confundir os dois. Ver seção "Identidade visual" mais abaixo.
+
 ## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-20
 
 **Tudo publicado e funcionando no PWA real**: https://djgabrielribeiro865.github.io/app-sports/
@@ -295,6 +299,33 @@ reportar um bug específico que precise ser reproduzido.
   React acusa como "Invalid DOM property" no build web (bug já visto e corrigido).
 - O gráfico de barras (km por semana) é feito com `View`s simples (sem SVG) — barras
   crescem por `height` percentual dentro de uma "trilho" de altura fixa.
+
+### Identidade visual (nome + ícone)
+- Nome visível ("Runner") vive em 4 lugares — trocar em todos ao renomear de novo:
+  `app.json` (`expo.name`, vira o `<title>`), `public/manifest.json` (`name`+`short_name`),
+  `scripts/inject-pwa-head.js` (meta `apple-mobile-web-app-title`), e o título grande em
+  `src/components/login-screen.tsx`. **Não** precisa mexer no `slug` (app.json) nem no
+  `name` do `package.json` — são identificadores técnicos internos, não aparecem pro
+  usuário.
+- Ícone: fonte única é `assets/images/icon.png` (1024×1024). Pra trocar, gerar os
+  tamanhos derivados com `sips` (built-in do macOS, sem precisar instalar nada):
+  `assets/images/favicon.png` (48×48) e `public/icons/icon-192.png` / `icon-512.png`
+  (PWA). Se a imagem nova vier de um gerador de IA em formato "paisagem" com a arte
+  centralizada (ex: export "2K" do Google Flow em 2752×1536 com faixas pretas nas
+  laterais), primeiro recortar o quadrado central: `sips -s format png -c ALTURA ALTURA
+  origem.jpeg --out recorte.png` (sips corta a partir do centro por padrão) — **conferir
+  visualmente o recorte antes de gerar os tamanhos finais**, lendo o PNG resultante.
+- ⚠️ `.expo/web/cache/` guarda o favicon já processado, indexado por hash do conteúdo
+  (`favicon-<hash>-contain-transparent/favicon-48.png`). Isso é gitignored e se
+  autoatualiza sozinho quando o `assets/images/favicon.png` muda — não é preciso limpar
+  esse cache manualmente, mas é útil saber que existe se algum dia o favicon parecer
+  "não ter mudado" (conferir o hash/timestamp da pasta mais nova ali dentro).
+- `AnimatedSplashOverlay` (`src/components/animated-icon.web.tsx`) — a variante que
+  roda de verdade no PWA (web) — retorna `null`. Ou seja, **não existe tela de splash
+  com logo no PWA hoje**; o logo do Expo que aparecia no template original só existia
+  na variante nativa (`animated-icon.tsx`, não usada já que o projeto é PWA-only) e no
+  componente `AnimatedIcon` (diferente de `AnimatedSplashOverlay`), que está sem uso em
+  lugar nenhum do app atualmente — não precisa mexer nisso ao trocar ícone/identidade.
 
 ### Publicação (GitHub Pages)
 - Repo é **público** (GitHub Pages grátis exige repo público). URL do app: **https://djgabrielribeiro865.github.io/app-sports/**.
