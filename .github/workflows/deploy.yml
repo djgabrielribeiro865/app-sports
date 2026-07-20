@@ -1,0 +1,70 @@
+name: Publicar PWA no GitHub Pages
+
+# Toda vez que enviarmos código pra branch main, o GitHub monta a versão
+# de produção do app e publica no GitHub Pages automaticamente.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite publicar manualmente pelo botão "Run workflow"
+
+# Permissões necessárias pra publicar no Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita duas publicações rodando ao mesmo tempo.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Montar o app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar o Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar a versão de produção (web)
+        env:
+          # Caminho base do GitHub Pages (o app mora em /app-sports).
+          EXPO_BASE_URL: /app-sports
+          # Conexão com o Supabase. A chave "anon" é pública por natureza
+          # (ela roda dentro do app no navegador), então é seguro ficar aqui.
+          EXPO_PUBLIC_SUPABASE_URL: https://bxwbghyumajjhzotscyu.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2JnaHl1bWFqamh6b3RzY3l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0ODgxOTUsImV4cCI6MjEwMDA2NDE5NX0.d189AtW6qOVXG8MN5Fpfvg2Y-ILQBH1dFax2KUrqiKc
+        run: npx expo export -p web
+
+      - name: Ajustes pro GitHub Pages
+        run: |
+          # Impede o GitHub de ignorar a pasta _expo (que começa com "_").
+          touch dist/.nojekyll
+          # Faz o app funcionar ao recarregar em qualquer rota (SPA fallback).
+          cp dist/index.html dist/404.html
+
+      - name: Enviar o build pro Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

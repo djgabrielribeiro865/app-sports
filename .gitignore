@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+# (dist/ é o build de produção, gerado automaticamente na publicação)
 
 # Native
 .kotlin/
