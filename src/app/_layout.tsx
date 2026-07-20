@@ -1,9 +1,8 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Slot, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { LoginScreen } from '@/components/login-screen';
 import { AuthProvider, useAuth } from '@/lib/auth';
 
@@ -25,7 +24,8 @@ function Porteiro() {
     return <LoginScreen />;
   }
 
-  return <AppTabs />;
+  // Sem barra de navegação: o app abre direto no conteúdo (Slot mostra a tela atual).
+  return <Slot />;
 }
 
 export default function TabLayout() {
