@@ -10,11 +10,11 @@ o stack ou o roadmap mudarem, edite este arquivo na mesma tarefa.
 
 ## ▶️ Onde paramos (retomar aqui) — pausa em 2026-07-20
 
-**Tudo publicado e funcionando no PWA real** (não só local):
-https://djgabrielribeiro865.github.io/app-sports/ — plano da semana, marcar como feito,
-login com Google, perfis + RLS seguros, agente Gemini integrado, e agora **navegação em
-gaveta (drawer) com 3 telas: Plano da semana, Histórico e Estatísticas** (com gráficos).
-Tudo commitado e no GitHub (branch `main`, limpo).
+**Tudo publicado e funcionando no PWA real**: https://djgabrielribeiro865.github.io/app-sports/
+— plano da semana, marcar como feito, login com Google, perfis + RLS seguros, e
+**navegação em gaveta (drawer) com 4 telas: Plano da semana, Agente de treinos
+(gerar plano via Gemini), Histórico e Estatísticas** (com gráficos). Tudo commitado e
+no GitHub (branch `main`, limpo).
 
 **A esposa já testou o login com a própria conta Google, com sucesso** — confirma que
 os perfis separados e a RLS por-usuário funcionam na prática (cada um vê só o seu
@@ -26,9 +26,9 @@ RESOURCE_EXHAUSTED` ("prepayment credits are depleted") — problema de billing 
 projeto Google Cloud vinculado à chave, não bug de código (auth → edge function → RLS
 → chamada ao Gemini funcionaram, só a resposta do Gemini falhou). O Gabriel já
 regularizou o pagamento na chave atual, mas **pediu para adiar o primeiro teste real
-para mais adiante** — retomar por aí: clicar em "Gerar plano da semana" no PWA e
-conferir se os 7 treinos aparecem. Se falhar de novo, checar `resultadoGemini.debug`
-reintroduzindo temporariamente o modo debug (ver Notas do agente Gemini abaixo).
+para mais adiante** — retomar por aí: no PWA, abrir "Agente de treinos" no menu e
+gerar um plano. Se falhar, checar `resultadoGemini.debug` reintroduzindo temporariamente
+o modo debug (ver Notas do agente Gemini abaixo).
 
 **Depois disso, o roadmap original está completo.** Próximos passos seriam iniciativa
 livre: refinar Estatísticas (mais métricas), outro esporte além de corrida, notificações,
@@ -38,9 +38,12 @@ etc. — perguntar ao Gabriel o que ele quer em seguida.
 do Supabase e a chave do Gemini que apareceram em texto puro no chat durante a
 configuração (por precaução).
 
-**Para retomar o desenvolvimento local (opcional — o Gabriel usa o PWA publicado):**
-`npx expo start --web` (abre em http://localhost:8081). Reiniciar sempre que mudar
-`.env`, instalar pacote ou mexer em `app.json`/`app.config.js`.
+**⚠️ Workflow de teste mudou:** o Gabriel pediu pra ser o próprio QA — **nunca rodar o
+servidor local (`expo start`) nem testar via browser automation** por conta própria.
+Depois de mudar código: `npx tsc --noEmit` + `npx expo export -p web` (só pra validar
+que compila) → commit + push (dispara publicação automática) → avisar que está no ar
+e deixar o Gabriel testar manualmente. Ver seção "Como rodar (dev) e workflow de teste"
+mais abaixo.
 
 ## Contexto humano importante
 
@@ -77,11 +80,12 @@ src/
                            # + Porteiro (login vs <Slot/>, que renderiza o grupo (drawer))
     (drawer)/              # Grupo de rotas com navegação em gaveta (não aparece na URL)
       _layout.tsx          # <Drawer> do expo-router/drawer: hambúrguer, overlay, drawerContent custom
-      index.tsx             # "Plano da semana" (rota "/")
-      historico.tsx          # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
-      estatisticas.tsx        # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
+      index.tsx             # "Plano da semana" (rota "/") — só o plano: ver + marcar como feito
+      agente.tsx              # "Agente de treinos" (rota "/agente") — gerar plano via Gemini
+      historico.tsx             # "Histórico" (rota "/historico") — semanas passadas, cards expansíveis
+      estatisticas.tsx           # "Estatísticas" (rota "/estatisticas") — KPIs + gráficos
   components/             # Peças reutilizáveis de UI
-    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 3 itens, botão Sair
+    drawer-content.tsx     # Conteúdo customizado da gaveta: avatar+nome, 4 itens, botão Sair
     treino-card.tsx         # <TreinoCard> — usado em "Plano da semana" e "Histórico"
     donut-chart.tsx          # Anel de progresso (SVG) — usado nas Estatísticas
     login-screen.tsx       # Tela de login (botão Entrar com Google)
@@ -128,9 +132,17 @@ a versão certa por plataforma).
 - Implementado com `expo-router/drawer` (grupo de rotas `src/app/(drawer)/`). Requer
   `GestureHandlerRootView` envolvendo o app (está em `src/app/_layout.tsx`).
 - `drawerContent` é **customizado** (`src/components/drawer-content.tsx`, não o padrão do
-  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 3 itens
-  com emoji + destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
+  React Navigation): mostra avatar (inicial do nome) + nome completo no topo, os 4 itens
+  (`ITENS` — Plano da semana, Agente de treinos, Histórico, Estatísticas) com emoji +
+  destaque no ativo, e "Sair" fixo no rodapé. Ao tocar num item, chama
   `navigation.navigate(rota)` + `navigation.closeDrawer()` explicitamente.
+- ⚠️ **Rotas tipadas ficam desatualizadas**: `.expo/types/router.d.ts` (gerado, gitignored)
+  só é regenerado pelo servidor dev interativo (`expo start`), que **não rodamos mais**
+  (ver regra de teste abaixo). `npx expo export` NÃO regenera esse arquivo. Resultado:
+  `router.push('/rota-nova')` para uma tela recém-criada dá erro de tipo no `tsc` mesmo
+  a rota existindo e funcionando de verdade. Solução usada: `router.push('/rota' as any)`
+  com um comentário explicando o motivo (ver `src/app/(drawer)/index.tsx`). Não afeta o
+  build/deploy real (o workflow não roda `tsc`, só `expo export`).
 - Cabeçalho do Drawer (`screenOptions` em `(drawer)/_layout.tsx`) fica minimalista:
   só o hambúrguer, sem título (cada tela já mostra seu próprio título grande como conteúdo).
 - ⚠️ **Import da tipagem**: usar `DrawerContentComponentProps` de `expo-router/drawer`
@@ -209,8 +221,9 @@ reportar um bug específico que precise ser reproduzido.
 - Deploy da função: `npx supabase functions deploy generate-plan` (não precisa Docker
   rodando, apesar do aviso). CLI conectado via `npx supabase login --token ...` +
   `npx supabase link --project-ref bxwbghyumajjhzotscyu`.
-- UI: cartão "🤖 Agente de treinos" em `src/app/index.tsx` (campo de instruções opcional
-  + botão "Gerar plano da semana"/"Gerar novo plano da semana").
+- UI: tela própria `src/app/(drawer)/agente.tsx` (acessível pelo menu lateral), com
+  campo de instruções opcional + botão "Gerar plano da semana". Ao concluir com sucesso,
+  navega de volta pra "Plano da semana" (`router.push('/')`) pra ver o resultado.
 - **Debug**: essa versão do `supabase` CLI não tem `functions logs`. Pra depurar erros do
   Gemini, reintroduzir temporariamente o campo `debug` na resposta de erro (já foi feito
   uma vez — ver histórico do git em `supabase/functions/generate-plan/index.ts`) e
